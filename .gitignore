@@ -1,0 +1,39 @@
+# ─── dependencies ────────────────────────────────────────────────────────────
+node_modules/
+
+# ─── build output ────────────────────────────────────────────────────────────
+dist/
+*.tsbuildinfo
+
+# ─── locksmith generated reports ─────────────────────────────────────────────
+security-report.json
+security-report.md
+
+# ─── test temp directory ─────────────────────────────────────────────────────
+tmp-test-project/
+
+# ─── environment & secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ─── os ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── ide ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ─── bun ─────────────────────────────────────────────────────────────────────
+# bun.lock is committed — do not ignore it

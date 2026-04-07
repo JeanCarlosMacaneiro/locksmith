@@ -1,0 +1,30 @@
+{
+  "name": "locksmith",
+  "version": "1.0.0",
+  "description": "Security policy checker for Node/Bun projects using pnpm",
+  "type": "module",
+  "bin": {
+    "locksmith": "./bin/cli.ts"
+  },
+  "scripts": {
+    "dev": "bun run ./bin/cli.ts",
+    "build": "bun build ./bin/cli.ts --outdir ./dist --target node --minify",
+    "test": "bun test",
+    "lint": "bunx tsc --noEmit",
+    "preinstall": "npx only-allow pnpm"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.1",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.11",
+    "@types/node": "^20.0.0",
+    "@types/yargs": "^17.0.35",
+    "typescript": "^6.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
+  "packageManager": "pnpm@10.25.0"
+}
