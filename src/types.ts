@@ -10,11 +10,12 @@ export interface CheckResult {
 
 export interface ProjectInfo {
   valid: boolean;
-  type: "node" | "bun" | "unknown";
+  type: "node" | "bun" | "python" | "unknown";
   name: string;
   version: string;
   hasBunLockb: boolean;
   hasPackageJson: boolean;
+  hasPyproject: boolean;
 }
 
 export interface RunOptions {

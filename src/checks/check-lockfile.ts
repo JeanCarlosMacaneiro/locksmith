@@ -2,18 +2,27 @@ import { existsSync } from "fs";
 import { join } from "path";
 import type { CheckResult } from "../types";
 
+const NPM_ARTIFACTS = ["package-lock.json", "yarn.lock"];
+
 export async function checkLockfile(projectPath: string): Promise<CheckResult> {
   const lockPath = join(projectPath, "pnpm-lock.yaml");
 
+  const conflictingFiles = NPM_ARTIFACTS.filter((f) => existsSync(join(projectPath, f)));
+
   if (!existsSync(lockPath)) {
+    const hasConflicts = conflictingFiles.length > 0;
+    const conflictNote = hasConflicts
+      ? ` — se eliminarán: ${conflictingFiles.join(", ")} y node_modules/`
+      : "";
+
     return {
       name: "pnpm-lock.yaml",
       status: "error",
-      message: "pnpm-lock.yaml no encontrado — ejecuta pnpm install",
+      message: `pnpm-lock.yaml no encontrado${conflictNote}`,
       fixable: true,
       fix: async () => {
-        const { $ } = await import("bun");
-        await $`pnpm install --no-frozen-lockfile`.cwd(projectPath);
+        const { applyLockfile } = await import("../fixer/apply");
+        await applyLockfile(projectPath);
       },
     };
   }

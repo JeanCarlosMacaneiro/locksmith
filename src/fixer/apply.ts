@@ -1,4 +1,4 @@
-import { writeFileSync, readFileSync } from "fs";
+import { writeFileSync, readFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import pc from "picocolors";
 import type { CheckResult } from "../types";
@@ -52,6 +52,88 @@ export async function applyOnlyAllow(projectPath: string) {
   pkg.scripts = { ...(pkg.scripts ?? {}), preinstall: "npx only-allow pnpm" };
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 }
+
+export async function applyLockfile(projectPath: string) {
+  const { $ } = await import("bun");
+
+  // Remove npm/yarn artifacts that conflict with pnpm
+  const artifacts = ["node_modules", "package-lock.json", "yarn.lock"];
+  for (const item of artifacts) {
+    const fullPath = join(projectPath, item);
+    if (existsSync(fullPath)) {
+      rmSync(fullPath, { recursive: true, force: true });
+    }
+  }
+
+  await $`pnpm install --no-frozen-lockfile --ignore-scripts`.cwd(projectPath);
+}
+
+// ─── Python fixers ────────────────────────────────────────────────────────────
+
+export async function applyPyproject(projectPath: string) {
+  const { $ } = await import("bun");
+  const pyprojectPath = join(projectPath, "pyproject.toml");
+
+  if (!existsSync(pyprojectPath)) {
+    // Initialize Poetry project non-interactively
+    await $`poetry init --no-interaction --python ">=3.12"`.cwd(projectPath);
+  } else {
+    // Patch requires-python if missing or wrong
+    let content = readFileSync(pyprojectPath, "utf-8");
+    if (!content.match(/^\s*python\s*=/m)) {
+      content = content.replace(
+        /(\[tool\.poetry\.dependencies\])/,
+        '$1\npython = ">=3.12"'
+      );
+      writeFileSync(pyprojectPath, content);
+    }
+  }
+}
+
+export async function applyPoetryToml(projectPath: string) {
+  const template = await Bun.file(
+    join(import.meta.dir, "../../templates/poetry.toml")
+  ).text();
+  writeFileSync(join(projectPath, "poetry.toml"), template);
+}
+
+export async function applyPoetryLock(projectPath: string) {
+  const { $ } = await import("bun");
+
+  // Remove pip/pipenv artifacts that conflict with Poetry
+  const artifacts = [".venv", "requirements.txt", "Pipfile", "Pipfile.lock"];
+  for (const item of artifacts) {
+    const fullPath = join(projectPath, item);
+    if (existsSync(fullPath)) {
+      rmSync(fullPath, { recursive: true, force: true });
+    }
+  }
+
+  await $`poetry install --no-interaction`.cwd(projectPath);
+}
+
+export async function applyPythonVersion(projectPath: string) {
+  writeFileSync(join(projectPath, ".python-version"), "3.12.7\n");
+}
+
+export async function applyDepGroups(projectPath: string) {
+  const { $ } = await import("bun");
+  // Ensure dev group exists — Poetry creates it on first dev add
+  await $`poetry add --group dev --no-interaction pytest`.cwd(projectPath);
+}
+
+export async function applyPypiSource(projectPath: string) {
+  const pyprojectPath = join(projectPath, "pyproject.toml");
+  let content = readFileSync(pyprojectPath, "utf-8");
+  // Remove all [[tool.poetry.source]] blocks that are not pypi.org
+  content = content.replace(/\[\[tool\.poetry\.source\]\][\s\S]*?(?=\[\[|$)/g, (block) => {
+    if (block.includes("https://pypi.org")) return block;
+    return "";
+  });
+  writeFileSync(pyprojectPath, content.trim() + "\n");
+}
+
+// ─── Node fixers ──────────────────────────────────────────────────────────────
 
 export async function applyPackageManager(projectPath: string) {
   const { $ } = await import("bun");
