@@ -7,6 +7,10 @@ import { applyFixes }         from "../fixer/apply";
 import { runOutdated }        from "../outdated/index";
 import type { RunOptions }    from "../types";
 
+// ── Shared checks ─────────────────────────────────────────────────────────────
+import { checkSecrets }        from "./check-secrets";
+import { checkGitignore }      from "./check-gitignore";
+
 // ── Node checks ───────────────────────────────────────────────────────────────
 import { checkPnpm }           from "./check-pnpm";
 import { checkNpmrc }          from "./check-npmrc";
@@ -15,6 +19,7 @@ import { checkAudit }          from "./check-audit";
 import { checkBuiltDeps }      from "./check-built-deps";
 import { checkOnlyAllow }      from "./check-only-allow";
 import { checkPackageManager } from "./check-package-manager";
+import { checkNodeVersion }    from "./check-node-version";
 
 // ── Python checks ─────────────────────────────────────────────────────────────
 import { checkPoetry }         from "./python/check-poetry";
@@ -38,6 +43,8 @@ async function runChecks(projectPath: string, type: string) {
       checkDepGroups(projectPath),
       checkPythonVersion(projectPath),
       checkPypiSource(projectPath),
+      checkGitignore(projectPath),
+      checkSecrets(projectPath),
     ]);
   }
 
@@ -49,7 +56,10 @@ async function runChecks(projectPath: string, type: string) {
     checkBuiltDeps(projectPath),
     checkOnlyAllow(projectPath),
     checkPackageManager(projectPath),
+    checkNodeVersion(projectPath),
     checkAudit(projectPath),
+    checkGitignore(projectPath),
+    checkSecrets(projectPath),
   ]);
 }
 

@@ -143,3 +143,41 @@ export async function applyPackageManager(projectPath: string) {
   pkg.packageManager = `pnpm@${version}`;
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 }
+
+export async function applyNodeVersion(projectPath: string) {
+  const { $ } = await import("bun");
+  const version = (await $`node --version`.text()).trim().replace(/^v/, "");
+  writeFileSync(join(projectPath, ".nvmrc"), `${version}\n`);
+}
+
+// ─── Shared fixers ────────────────────────────────────────────────────────────
+
+const GITIGNORE_SECURITY_PATTERNS = [
+  "# Security — added by locksmith",
+  ".env",
+  ".env.*",
+  ".env*.local",
+  "*.pem",
+  "*.key",
+  "*.p12",
+  "*.pfx",
+  "*.crt",
+].join("\n");
+
+export async function applyGitignore(projectPath: string) {
+  const { existsSync, readFileSync } = await import("fs");
+  const gitignorePath = join(projectPath, ".gitignore");
+
+  if (!existsSync(gitignorePath)) {
+    writeFileSync(gitignorePath, GITIGNORE_SECURITY_PATTERNS + "\n");
+    return;
+  }
+
+  const existing = readFileSync(gitignorePath, "utf-8");
+  const toAdd = GITIGNORE_SECURITY_PATTERNS
+    .split("\n")
+    .filter((line) => line.startsWith("#") || (!existing.includes(line) && line.length > 0))
+    .join("\n");
+
+  writeFileSync(gitignorePath, existing.trimEnd() + "\n\n" + toAdd + "\n");
+}

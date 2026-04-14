@@ -25,7 +25,13 @@ import { checkDepGroups }     from "../src/checks/python/check-dep-groups";
 import { checkPythonVersion } from "../src/checks/python/check-python-version";
 import { checkPypiSource }    from "../src/checks/python/check-pypi-source";
 
+import { checkSecrets }      from "../src/checks/check-secrets";
+import { checkGitignore }    from "../src/checks/check-gitignore";
+import { checkNodeVersion }  from "../src/checks/check-node-version";
+
 import {
+  applyGitignore,
+  applyNodeVersion,
   applyNpmrc,
   applyRenovate,
   applyOnlyBuiltDeps,
@@ -953,5 +959,244 @@ describe("buildOutdatedPackage", () => {
     expect(patch.policyDays).toBe(3);
     expect(minor.policyDays).toBe(7);
     expect(major.policyDays).toBe(30);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NUEVOS CHECKS DE SEGURIDAD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── checkGitignore ──────────────────────────────────────────────────────────
+
+describe("checkGitignore", () => {
+  it("error si .gitignore no existe — debe ser fixable", async () => {
+    writePkg();
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("error");
+    expect(r.fixable).toBe(true);
+    expect(r.fix).toBeTypeOf("function");
+  });
+
+  it("warn si .gitignore existe pero falta .env", async () => {
+    writeFileSync(join(TMP, ".gitignore"), "node_modules\n*.pem\n*.key\n");
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain(".env");
+    expect(r.fixable).toBe(true);
+  });
+
+  it("warn si .gitignore existe pero falta *.pem", async () => {
+    writeFileSync(join(TMP, ".gitignore"), ".env\n*.key\n");
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain("*.pem");
+  });
+
+  it("warn si .gitignore existe pero falta *.key", async () => {
+    writeFileSync(join(TMP, ".gitignore"), ".env\n*.pem\n");
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain("*.key");
+  });
+
+  it("ok si .gitignore tiene todos los patrones requeridos", async () => {
+    writeFileSync(join(TMP, ".gitignore"), ".env\n*.pem\n*.key\nnode_modules\n");
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("ok");
+    expect(r.message).toContain(".env");
+    expect(r.message).toContain("*.pem");
+    expect(r.message).toContain("*.key");
+  });
+
+  it("ok si usa .env* como patrón glob", async () => {
+    writeFileSync(join(TMP, ".gitignore"), ".env*\n*.pem\n*.key\n");
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("ok");
+  });
+});
+
+// ─── applyGitignore ──────────────────────────────────────────────────────────
+
+describe("applyGitignore", () => {
+  it("crea .gitignore con todos los patrones de seguridad si no existe", async () => {
+    await applyGitignore(TMP);
+    const content = readFileSync(join(TMP, ".gitignore"), "utf-8");
+    expect(content).toContain(".env");
+    expect(content).toContain("*.pem");
+    expect(content).toContain("*.key");
+  });
+
+  it("agrega patrones faltantes sin borrar el contenido existente", async () => {
+    writeFileSync(join(TMP, ".gitignore"), "node_modules\ndist\n");
+    await applyGitignore(TMP);
+    const content = readFileSync(join(TMP, ".gitignore"), "utf-8");
+    expect(content).toContain("node_modules");
+    expect(content).toContain("dist");
+    expect(content).toContain(".env");
+    expect(content).toContain("*.pem");
+  });
+
+  it("después del fix checkGitignore retorna ok", async () => {
+    await applyGitignore(TMP);
+    const r = await checkGitignore(TMP);
+    expect(r.status).toBe("ok");
+  });
+});
+
+// ─── checkNodeVersion ────────────────────────────────────────────────────────
+
+describe("checkNodeVersion", () => {
+  it("warn si no existe .nvmrc ni engines.node — debe ser fixable", async () => {
+    writePkg();
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.fixable).toBe(true);
+    expect(r.fix).toBeTypeOf("function");
+  });
+
+  it("warn si .nvmrc tiene versión menor a 18", async () => {
+    writePkg();
+    writeFileSync(join(TMP, ".nvmrc"), "16.20.0\n");
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain("16.20.0");
+    expect(r.fixable).toBe(true);
+  });
+
+  it("ok si .nvmrc tiene versión >= 18", async () => {
+    writePkg();
+    writeFileSync(join(TMP, ".nvmrc"), "20.11.0\n");
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("ok");
+    expect(r.message).toContain("20.11.0");
+  });
+
+  it("ok si .nvmrc tiene versión con prefijo v", async () => {
+    writePkg();
+    writeFileSync(join(TMP, ".nvmrc"), "v22.3.0\n");
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("ok");
+    expect(r.message).toContain("22.3.0");
+  });
+
+  it("ok si package.json tiene engines.node", async () => {
+    writePkg({ engines: { node: ">=20.0.0" } });
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("ok");
+    expect(r.message).toContain(">=20.0.0");
+  });
+
+  it("ok si existe .node-version", async () => {
+    writePkg();
+    writeFileSync(join(TMP, ".node-version"), "20.11.0\n");
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("ok");
+    expect(r.message).toContain("20.11.0");
+  });
+});
+
+// ─── applyNodeVersion ────────────────────────────────────────────────────────
+
+describe("applyNodeVersion", () => {
+  it("crea .nvmrc con la versión de node instalada", async () => {
+    writePkg();
+    await applyNodeVersion(TMP);
+    const content = readFileSync(join(TMP, ".nvmrc"), "utf-8").trim();
+    expect(content).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it("después del fix checkNodeVersion retorna ok", async () => {
+    writePkg();
+    await applyNodeVersion(TMP);
+    const r = await checkNodeVersion(TMP);
+    expect(r.status).toBe("ok");
+  });
+});
+
+// ─── checkSecrets ─────────────────────────────────────────────────────────────
+
+describe("checkSecrets", () => {
+  it("ok si no hay archivos con secrets", async () => {
+    writeFileSync(join(TMP, "index.ts"), 'const greeting = "hello world";\n');
+    const r = await checkSecrets(TMP);
+    expect(r.status).toBe("ok");
+  });
+
+  it("error si encuentra una PEM private key", async () => {
+    writeFileSync(join(TMP, "config.ts"), `
+const key = \`-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA0Z3VS5JJcds3xHn/ygWep4
+-----END RSA PRIVATE KEY-----\`;
+`);
+    const r = await checkSecrets(TMP);
+    expect(r.status).toBe("error");
+    expect(r.hint!.join("\n")).toContain("config.ts");
+  });
+
+  it("error si encuentra un AWS access key", async () => {
+    writeFileSync(join(TMP, "deploy.ts"), 'const awsKey = "AKIAIOSFODNN7EXAMPLE";\n');
+    const r = await checkSecrets(TMP);
+    expect(r.status).toBe("error");
+    expect(r.hint!.join("\n")).toContain("deploy.ts");
+  });
+
+  it("error si encuentra un GitHub token", async () => {
+    writeFileSync(join(TMP, "ci.ts"), 'const token = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890";\n');
+    const r = await checkSecrets(TMP);
+    expect(r.status).toBe("error");
+    expect(r.hint!.join("\n")).toContain("ci.ts");
+  });
+
+  it("warn si encuentra un secret generico hardcodeado", async () => {
+    writeFileSync(join(TMP, "db.ts"), 'const password = "my_super_secret_db_pass";\n');
+    const r = await checkSecrets(TMP);
+    expect(r.status).not.toBe("ok");
+  });
+
+  it("ok si el valor es una variable de entorno (no hardcodeado)", async () => {
+    writeFileSync(join(TMP, "config.ts"), 'const password = process.env.DB_PASSWORD;\n');
+    const r = await checkSecrets(TMP);
+    expect(r.status).toBe("ok");
+  });
+
+  it("no escanea node_modules", async () => {
+    mkdirSync(join(TMP, "node_modules", "some-pkg"), { recursive: true });
+    writeFileSync(
+      join(TMP, "node_modules", "some-pkg", "index.js"),
+      'const key = "AKIAIOSFODNN7EXAMPLE";\n'
+    );
+    const r = await checkSecrets(TMP);
+    expect(r.status).toBe("ok");
+  });
+
+  it("incluye hint con instrucciones cuando detecta secrets", async () => {
+    writeFileSync(join(TMP, "config.ts"), `
+const key = \`-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA0Z3VS5JJcds3xHn
+-----END RSA PRIVATE KEY-----\`;
+`);
+    const r = await checkSecrets(TMP);
+    expect(r.hint).toBeDefined();
+    expect(r.hint!.length).toBeGreaterThan(0);
+  });
+
+  it("muestra número de línea en el hint", async () => {
+    writeFileSync(join(TMP, "secrets.ts"), [
+      'const greeting = "hello";',
+      'const awsKey = "AKIAIOSFODNN7EXAMPLE";',
+      'const other = "foo";',
+    ].join("\n"));
+    const r = await checkSecrets(TMP);
+    const hintText = r.hint!.join("\n");
+    expect(hintText).toContain("secrets.ts");
+    expect(hintText).toContain("línea 2");
+    expect(hintText).toContain("AWS access key");
+  });
+
+  it("el mensaje indica el conteo de secrets detectados", async () => {
+    writeFileSync(join(TMP, "a.ts"), 'const k = "AKIAIOSFODNN7EXAMPLE";\n');
+    writeFileSync(join(TMP, "b.ts"), 'const k = "AKIAIOSFODNN7EXAMPLE";\n');
+    const r = await checkSecrets(TMP);
+    expect(r.message).toMatch(/2.*secret/i);
   });
 });
