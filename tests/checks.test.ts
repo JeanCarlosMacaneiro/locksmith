@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from "fs";
 import { join } from "path";
 
+import {
+  classifyUpdateType,
+  calcAgeInDays,
+  isPolicyMet,
+  readRenovatePolicy,
+  buildOutdatedPackage,
+} from "../src/outdated/classify";
+
 import { detectProject }      from "../src/checks/detect-project";
 import { checkNpmrc }         from "../src/checks/check-npmrc";
 import { checkRenovate }      from "../src/checks/check-renovate";
@@ -750,5 +758,200 @@ describe("applyPypiSource", () => {
     await applyPypiSource(TMP);
     const r = await checkPypiSource(TMP);
     expect(r.status).toBe("ok");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OUTDATED — classify.ts
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── classifyUpdateType ──────────────────────────────────────────────────────
+
+describe("classifyUpdateType", () => {
+  it("patch: solo cambia el tercer número", () => {
+    expect(classifyUpdateType("1.2.3", "1.2.4")).toBe("patch");
+  });
+
+  it("patch: números iguales", () => {
+    expect(classifyUpdateType("1.0.0", "1.0.1")).toBe("patch");
+  });
+
+  it("minor: cambia el segundo número", () => {
+    expect(classifyUpdateType("1.2.3", "1.3.0")).toBe("minor");
+  });
+
+  it("minor: minor mayor, patch diferente", () => {
+    expect(classifyUpdateType("17.7.2", "18.0.0")).toBe("major");
+  });
+
+  it("major: cambia el primer número", () => {
+    expect(classifyUpdateType("5.9.3", "6.0.2")).toBe("major");
+  });
+
+  it("major: de 1.x a 2.x", () => {
+    expect(classifyUpdateType("1.0.0", "2.0.0")).toBe("major");
+  });
+});
+
+// ─── calcAgeInDays ───────────────────────────────────────────────────────────
+
+describe("calcAgeInDays", () => {
+  it("retorna 0 para una fecha de hoy", () => {
+    const now = new Date();
+    expect(calcAgeInDays(now)).toBe(0);
+  });
+
+  it("retorna 1 para una fecha de ayer", () => {
+    const yesterday = new Date(Date.now() - 86_400_000);
+    expect(calcAgeInDays(yesterday)).toBe(1);
+  });
+
+  it("retorna 7 para hace una semana", () => {
+    const lastWeek = new Date(Date.now() - 7 * 86_400_000);
+    expect(calcAgeInDays(lastWeek)).toBe(7);
+  });
+
+  it("retorna 30 para hace un mes", () => {
+    const lastMonth = new Date(Date.now() - 30 * 86_400_000);
+    expect(calcAgeInDays(lastMonth)).toBe(30);
+  });
+});
+
+// ─── isPolicyMet ─────────────────────────────────────────────────────────────
+
+describe("isPolicyMet", () => {
+  it("true cuando la edad supera el mínimo de días", () => {
+    expect(isPolicyMet(5, 3)).toBe(true);
+  });
+
+  it("true cuando la edad es exactamente el mínimo", () => {
+    expect(isPolicyMet(3, 3)).toBe(true);
+  });
+
+  it("false cuando la edad es menor al mínimo", () => {
+    expect(isPolicyMet(1, 3)).toBe(false);
+  });
+
+  it("false cuando edad es 0 y política es 3", () => {
+    expect(isPolicyMet(0, 3)).toBe(false);
+  });
+
+  it("null cuando ageInDays es null (fecha desconocida)", () => {
+    expect(isPolicyMet(null, 3)).toBeNull();
+  });
+});
+
+// ─── readRenovatePolicy ──────────────────────────────────────────────────────
+
+describe("readRenovatePolicy", () => {
+  it("retorna defaults con hasConfig=false si no hay renovate.json", () => {
+    const p = readRenovatePolicy(TMP);
+    expect(p.hasConfig).toBe(false);
+    expect(p.patch).toBe(3);
+    expect(p.minor).toBe(7);
+    expect(p.major).toBe(30);
+  });
+
+  it("lee los delays correctamente del renovate.json", () => {
+    writeFileSync(join(TMP, "renovate.json"), JSON.stringify({
+      packageRules: [
+        { matchUpdateTypes: ["patch"], minimumReleaseAge: "3 days" },
+        { matchUpdateTypes: ["minor"], minimumReleaseAge: "7 days" },
+        { matchUpdateTypes: ["major"], minimumReleaseAge: "30 days" },
+      ],
+    }));
+    const p = readRenovatePolicy(TMP);
+    expect(p.hasConfig).toBe(true);
+    expect(p.patch).toBe(3);
+    expect(p.minor).toBe(7);
+    expect(p.major).toBe(30);
+  });
+
+  it("usa defaults para tipos no configurados en renovate.json", () => {
+    writeFileSync(join(TMP, "renovate.json"), JSON.stringify({
+      packageRules: [
+        { matchUpdateTypes: ["patch"], minimumReleaseAge: "5 days" },
+      ],
+    }));
+    const p = readRenovatePolicy(TMP);
+    expect(p.patch).toBe(5);
+    expect(p.minor).toBe(7);  // default
+    expect(p.major).toBe(30); // default
+  });
+
+  it("acepta renovate.json en .github/renovate.json", () => {
+    mkdirSync(join(TMP, ".github"), { recursive: true });
+    writeFileSync(join(TMP, ".github/renovate.json"), JSON.stringify({
+      packageRules: [
+        { matchUpdateTypes: ["patch"], minimumReleaseAge: "10 days" },
+      ],
+    }));
+    const p = readRenovatePolicy(TMP);
+    expect(p.hasConfig).toBe(true);
+    expect(p.patch).toBe(10);
+  });
+
+  it("retorna defaults con hasConfig=false si el JSON es inválido", () => {
+    writeFileSync(join(TMP, "renovate.json"), "{ invalid json }");
+    const p = readRenovatePolicy(TMP);
+    expect(p.hasConfig).toBe(false);
+  });
+});
+
+// ─── buildOutdatedPackage ────────────────────────────────────────────────────
+
+describe("buildOutdatedPackage", () => {
+  const policy = { patch: 3, minor: 7, major: 30, hasConfig: true };
+
+  it("patch + policyMet → safeToUpdate true", () => {
+    const date = new Date(Date.now() - 5 * 86_400_000); // 5 días
+    const pkg  = buildOutdatedPackage("picocolors", "1.1.1", "1.1.2", date, policy);
+    expect(pkg.updateType).toBe("patch");
+    expect(pkg.policyMet).toBe(true);
+    expect(pkg.safeToUpdate).toBe(true);
+  });
+
+  it("patch + policy NOT met → safeToUpdate false", () => {
+    const date = new Date(Date.now() - 1 * 86_400_000); // 1 día
+    const pkg  = buildOutdatedPackage("picocolors", "1.1.1", "1.1.2", date, policy);
+    expect(pkg.updateType).toBe("patch");
+    expect(pkg.policyMet).toBe(false);
+    expect(pkg.safeToUpdate).toBe(false);
+  });
+
+  it("minor + policyMet → safeToUpdate false (minor nunca es auto-update)", () => {
+    const date = new Date(Date.now() - 10 * 86_400_000); // 10 días
+    const pkg  = buildOutdatedPackage("yargs", "18.0.0", "18.1.0", date, policy);
+    expect(pkg.updateType).toBe("minor");
+    expect(pkg.policyMet).toBe(true);
+    expect(pkg.safeToUpdate).toBe(false);
+  });
+
+  it("major → safeToUpdate siempre false", () => {
+    const date = new Date(Date.now() - 60 * 86_400_000); // 60 días
+    const pkg  = buildOutdatedPackage("typescript", "5.9.3", "6.0.2", date, policy);
+    expect(pkg.updateType).toBe("major");
+    expect(pkg.safeToUpdate).toBe(false);
+  });
+
+  it("major en classifyUpdateType: 17.x → 18.x es major no minor", () => {
+    expect(classifyUpdateType("17.7.2", "18.0.0")).toBe("major");
+  });
+
+  it("sin fecha → policyMet null, safeToUpdate false", () => {
+    const pkg = buildOutdatedPackage("some-pkg", "1.0.0", "1.0.1", null, policy);
+    expect(pkg.ageInDays).toBeNull();
+    expect(pkg.policyMet).toBeNull();
+    expect(pkg.safeToUpdate).toBe(false);
+  });
+
+  it("calcula policyDays correcto según el tipo", () => {
+    const date = new Date(Date.now() - 5 * 86_400_000);
+    const patch = buildOutdatedPackage("a", "1.0.0", "1.0.1", date, policy);
+    const minor = buildOutdatedPackage("b", "1.0.0", "1.1.0", date, policy);
+    const major = buildOutdatedPackage("c", "1.0.0", "2.0.0", date, policy);
+    expect(patch.policyDays).toBe(3);
+    expect(minor.policyDays).toBe(7);
+    expect(major.policyDays).toBe(30);
   });
 });

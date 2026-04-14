@@ -31,6 +31,11 @@ yargs(hideBin(process.argv))
           type: "boolean",
           description: "Falla con exit 1 si hay advertencias",
           default: false,
+        })
+        .option("outdated", {
+          type: "boolean",
+          description: "Verifica paquetes desactualizados y valida contra política de Renovate",
+          default: false,
         }),
     async (argv) => {
       const opts: RunOptions = {
@@ -38,6 +43,7 @@ yargs(hideBin(process.argv))
         fix: argv.fix,
         report: argv.report as "json" | "markdown" | undefined,
         strict: argv.strict,
+        outdated: argv.outdated,
       };
       await runAllChecks(opts);
     }

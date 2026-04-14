@@ -23,4 +23,27 @@ export interface RunOptions {
   fix: boolean;
   report?: "json" | "markdown";
   strict: boolean;
+  outdated: boolean;
+}
+
+// ─── outdated ────────────────────────────────────────────────────────────────
+
+export type UpdateType = "patch" | "minor" | "major";
+
+export interface RenovatePolicy {
+  patch: number;
+  minor: number;
+  major: number;
+  hasConfig: boolean;
+}
+
+export interface OutdatedPackage {
+  name: string;
+  current: string;
+  latest: string;
+  updateType: UpdateType;
+  ageInDays: number | null;
+  policyDays: number;
+  policyMet: boolean | null;
+  safeToUpdate: boolean;
 }

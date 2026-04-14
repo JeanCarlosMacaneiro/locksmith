@@ -4,6 +4,7 @@ import { checkRenovate }      from "./check-renovate";
 import { printReport }        from "../reporter/console";
 import { exportReport }       from "../reporter/export";
 import { applyFixes }         from "../fixer/apply";
+import { runOutdated }        from "../outdated/index";
 import type { RunOptions }    from "../types";
 
 // ── Node checks ───────────────────────────────────────────────────────────────
@@ -89,6 +90,11 @@ export async function runAllChecks(opts: RunOptions) {
       await exportReport(reResults, opts.report, opts.projectPath);
     }
 
+    if (opts.outdated) {
+      console.log(pc.bold("\n🔍 Verificando paquetes desactualizados...\n"));
+      await runOutdated(opts.projectPath, project.type, true);
+    }
+
     const hasErrors   = reResults.some((r) => r.status === "error");
     const hasWarnings = reResults.some((r) => r.status === "warn");
 
@@ -98,6 +104,11 @@ export async function runAllChecks(opts: RunOptions) {
 
   if (opts.report) {
     await exportReport(results, opts.report, opts.projectPath);
+  }
+
+  if (opts.outdated) {
+    console.log(pc.bold("\n🔍 Verificando paquetes desactualizados...\n"));
+    await runOutdated(opts.projectPath, project.type, opts.fix);
   }
 
   const hasErrors   = results.some((r) => r.status === "error");

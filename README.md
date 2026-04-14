@@ -1,32 +1,17 @@
 # locksmith
 
-A CLI tool that audits and enforces security policies across **Node.js / Bun** and **Python** projects in your company. Designed to protect against **supply chain attacks**, infected packages, and insecure dependency configurations.
+A CLI tool that audits and enforces security policies across **Node.js / Bun** and **Python** projects. Designed to protect against **supply chain attacks**, infected packages, and insecure dependency configurations.
 
 Locksmith automatically detects the project language and runs the appropriate set of security checks — no configuration needed.
-
-### Documentation
-
-| Tool | Documentation |
-|---|---|
-| pnpm | [pnpm.io/docs](https://pnpm.io/motivation) |
-| pnpm CLI | [pnpm.io/cli/install](https://pnpm.io/cli/install) |
-| pnpm security | [pnpm.io/security](https://pnpm.io/security) |
-| Poetry | [python-poetry.org/docs](https://python-poetry.org/docs/) |
-| Poetry CLI | [python-poetry.org/docs/cli](https://python-poetry.org/docs/cli/) |
-| Poetry configuration | [python-poetry.org/docs/configuration](https://python-poetry.org/docs/configuration/) |
-| Renovate | [docs.renovatebot.com](https://docs.renovatebot.com) |
 
 ---
 
 ## Requirements
 
-### For Node.js / Bun projects
-- [Bun](https://bun.sh) `>= 1.0`
-- [pnpm](https://pnpm.io) `>= 8.0`
-
-### For Python projects
-- [Poetry](https://python-poetry.org) `>= 1.8`
-- [Python](https://python.org) `>= 3.12`
+| Ecosystem | Requirement |
+|---|---|
+| Node.js / Bun | [Bun](https://bun.sh) `>= 1.0` · [pnpm](https://pnpm.io) `>= 8.0` |
+| Python | [Poetry](https://python-poetry.org) `>= 1.8` · [Python](https://python.org) `>= 3.12` |
 
 ---
 
@@ -53,16 +38,9 @@ cd locksmith
 > Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 > ```
 
-The installer automatically:
-- Checks and installs Bun if missing
-- Checks and installs pnpm if missing
-- Installs project dependencies
-- Registers the `locksmith` command globally
-- Updates your shell PATH if needed
+The installer automatically checks and installs Bun and pnpm if missing, installs dependencies, registers the `locksmith` command globally, and updates your shell PATH.
 
-After installation, the `locksmith` command will be available system-wide.
-
-### Run directly without installing
+### Run without installing
 
 ```bash
 bun run ./bin/cli.ts [path] [options]
@@ -76,75 +54,75 @@ bun run ./bin/cli.ts [path] [options]
 locksmith [path] [options]
 ```
 
-| Argument | Description | Default |
+| Option | Description | Default |
 |---|---|---|
 | `[path]` | Path to the project to analyze | Current directory |
 | `--fix` | Automatically apply available corrections | `false` |
-| `--report json\|markdown` | Export the results to a file | — |
+| `--outdated` | Check for outdated packages validated against Renovate policy | `false` |
+| `--report json\|markdown` | Export results to a file | — |
 | `--strict` | Exit with code `1` on warnings (not only errors) | `false` |
 | `-v, --version` | Show version | — |
 | `-h, --help` | Show help | — |
 
-### Examples
+### Common commands
 
 ```bash
-# Analyze the current directory
+# Run security checks on the current project
 locksmith
 
-# Analyze a specific project
-locksmith /path/to/my-project
+# Auto-fix all fixable issues
+locksmith --fix
 
-# Analyze and auto-fix all fixable issues
-locksmith /path/to/my-project --fix
+# Check for outdated packages
+locksmith --outdated
 
-# Export results as JSON
-locksmith /path/to/my-project --report json
+# Apply safe patch updates (patches that passed the Renovate delay policy)
+locksmith --outdated --fix
 
-# Export results as Markdown
-locksmith /path/to/my-project --report markdown
-
-# Fail on warnings (useful in CI pipelines)
-locksmith /path/to/my-project --strict
+# Block CI pipeline on any warning or error
+locksmith --strict
 ```
 
 ---
 
-## Security Checks
+## Security checks
 
-Locksmith detects the project language automatically and runs the corresponding checks in parallel.
+Locksmith detects the project language from `package.json` (Node/Bun) or `pyproject.toml` (Python) and runs all checks in parallel.
 
 ### Node.js / Bun — 8 checks
 
-| Check | Description | Auto-fix |
+| Check | What it validates | Auto-fix |
 |---|---|---|
-| `pnpm version` | Validates pnpm is installed and `>= 8` | No |
-| `.npmrc` | Enforces 5 required security rules | Yes |
-| `pnpm-lock.yaml` | Ensures the lockfile exists and is not corrupted | Yes |
-| `renovate.json` | Validates minimum release age for dependency updates | Yes |
-| `onlyBuiltDependencies` | Verifies a build script allowlist is configured | Yes |
-| `only-allow pnpm` | Ensures only pnpm can install dependencies | Yes |
-| `packageManager` | Validates the exact pnpm version is pinned in `package.json` | Yes |
-| `pnpm audit` | Runs `pnpm audit` to detect known CVEs | No |
+| `pnpm version` | pnpm is installed and `>= 8` | — |
+| `.npmrc` | 5 required security rules are present | Yes |
+| `pnpm-lock.yaml` | Lockfile exists and is not empty or corrupted | Yes |
+| `renovate.json` | Minimum release age is configured for all update types | Yes |
+| `onlyBuiltDependencies` | A build script allowlist or denylist is configured | Yes |
+| `only-allow pnpm` | `scripts.preinstall` enforces pnpm as the only package manager | Yes |
+| `packageManager` | Exact pnpm version is pinned in `package.json` | Yes |
+| `pnpm audit` | No known CVEs in installed dependencies | — |
 
 ### Python / Poetry — 9 checks
 
-| Check | Description | Auto-fix |
+| Check | What it validates | Auto-fix |
 |---|---|---|
-| `poetry version` | Validates Poetry is installed and `>= 1.8` | No |
-| `pyproject.toml` | Validates `requires-python = ">=3.12"` and project structure | Yes |
-| `poetry.toml` | Enforces local virtualenv config (`virtualenvs.in-project = true`) | Yes |
-| `poetry.lock` | Ensures the lockfile exists and is not corrupted | Yes |
-| `renovate.json` | Validates minimum release age for dependency updates | Yes |
-| `poetry audit` | Runs `poetry audit` to detect known CVEs | No |
-| `dependency groups` | Validates dev/test dependencies are separated from production | Yes |
-| `python version` | Validates `.python-version` is pinned to `3.12.x` | Yes |
-| `PyPI registry` | Validates that `pyproject.toml` has no sources pointing to untrusted registries | Yes |
+| `poetry version` | Poetry is installed and `>= 1.8` | — |
+| `pyproject.toml` | File exists with `[tool.poetry]` and `python = ">=3.12"` | Yes |
+| `poetry.toml` | `virtualenvs.in-project = true` is set | Yes |
+| `poetry.lock` | Lockfile exists and is not empty or corrupted | Yes |
+| `renovate.json` | Minimum release age is configured for all update types | Yes |
+| `poetry audit` | No known CVEs in installed dependencies | — |
+| `dependency groups` | Dev dependencies are separated from production | Yes |
+| `python version` | `.python-version` is pinned to `3.12.x` | Yes |
+| `PyPI registry` | No custom sources pointing to untrusted registries | Yes |
 
-### Check details — Node.js / Bun
+---
 
-#### `.npmrc` — Required rules
+### Node.js / Bun — check details
 
-All 5 rules below must be present:
+#### `.npmrc` — Required security rules
+
+All 5 rules must be present:
 
 ```ini
 ignore-scripts=true         # Prevents postinstall/preinstall script execution
@@ -158,25 +136,9 @@ node-linker=isolated        # Uses isolated node_modules (reduces ghost dependen
 
 ---
 
-#### `renovate.json` — Minimum release age
-
-Enforces a waiting period before applying dependency updates, allowing time to detect newly poisoned versions:
-
-| Update type | Minimum age | Auto-merge |
-|---|---|---|
-| `patch` | 3 days | No |
-| `minor` | 7 days | No |
-| `major` | 30 days | No |
-
-> **Auto-fix:** creates a `renovate.json` file with the required configuration.
-
-When this check has a warning or error, locksmith displays contextual guidance in the console explaining what Renovate is, how to install it, and what commands to run to update dependencies manually.
-
----
-
 #### `onlyBuiltDependencies` — Build script allowlist
 
-Validates that `package.json` has either `pnpm.onlyBuiltDependencies` (allowlist) or `pnpm.neverBuiltDependencies` (denylist) configured.
+`package.json` must have either `pnpm.onlyBuiltDependencies` (allowlist) or `pnpm.neverBuiltDependencies` (denylist). Without this, any package can run arbitrary code during installation via `postinstall`.
 
 ```json
 {
@@ -192,7 +154,7 @@ Validates that `package.json` has either `pnpm.onlyBuiltDependencies` (allowlist
 
 #### `only-allow pnpm` — Package manager enforcement
 
-Ensures `scripts.preinstall` contains `only-allow pnpm`, preventing npm or yarn from being used accidentally.
+`scripts.preinstall` must contain `only-allow pnpm` to prevent npm or yarn from being used accidentally, which would alter the lockfile.
 
 ```json
 {
@@ -208,7 +170,7 @@ Ensures `scripts.preinstall` contains `only-allow pnpm`, preventing npm or yarn 
 
 #### `packageManager` — Pinned pnpm version
 
-Validates that `package.json` has the `packageManager` field with an exact pnpm version, preventing version downgrade attacks.
+`package.json` must have the `packageManager` field with an exact version, preventing silent pnpm version changes that could reintroduce vulnerabilities.
 
 ```json
 {
@@ -216,17 +178,15 @@ Validates that `package.json` has the `packageManager` field with an exact pnpm 
 }
 ```
 
-> **Auto-fix:** detects the pnpm version currently installed and writes it automatically.
-
-Once set, [Renovate](https://github.com/apps/renovate) will open PRs automatically when a new pnpm version is available, respecting the configured release delays.
+> **Auto-fix:** detects the installed pnpm version and writes it automatically. Renovate keeps this field up to date when new pnpm versions are released.
 
 ---
 
 #### `pnpm audit` — Known CVEs
 
-Runs `pnpm audit --json` and classifies results by severity:
+Runs `pnpm audit --json` and classifies results:
 
-| Result | Condition |
+| Status | Condition |
 |---|---|
 | `OK` | No vulnerabilities found |
 | `WARN` | Only moderate or low severity |
@@ -234,11 +194,11 @@ Runs `pnpm audit --json` and classifies results by severity:
 
 ---
 
-### Check details — Python / Poetry
+### Python / Poetry — check details
 
 #### `pyproject.toml` — Project configuration
 
-Validates that `pyproject.toml` exists and enforces the required Python version:
+Must exist with `[tool.poetry]` and `python = ">=3.12"` in the dependencies section:
 
 ```toml
 [tool.poetry]
@@ -249,54 +209,42 @@ version = "0.1.0"
 python = ">=3.12"
 ```
 
-> **Auto-fix:** creates or updates `pyproject.toml` via `poetry init` if missing, and adds `requires-python = ">=3.12"`.
+> **Auto-fix:** runs `poetry init` if missing, or patches `requires-python` if the version is below 3.12.
 
 ---
 
-#### `poetry.toml` — Local virtualenv configuration
+#### `poetry.toml` — Local virtualenv
 
-Enforces that the virtual environment is created inside the project directory, ensuring isolation and reproducibility:
+The virtual environment must be created inside the project directory for isolation and reproducibility across machines and CI:
 
 ```toml
 [virtualenvs]
 in-project = true
+prefer-active-python = true
 ```
 
-> **Auto-fix:** creates `poetry.toml` with the required configuration.
+> **Auto-fix:** creates `poetry.toml` from the project template.
 
 ---
 
 #### `poetry.lock` — Lockfile integrity
 
-Ensures `poetry.lock` exists and is not empty or corrupted. If the project previously used `pip` or `Pipenv`, the fix removes conflicting files before generating the lockfile.
+`poetry.lock` must exist and not be empty or corrupted. If the project previously used `pip` or `Pipenv`, the fix removes conflicting artifacts before regenerating the lockfile:
 
-Removed during fix if present:
 - `requirements.txt`
 - `Pipfile` / `Pipfile.lock`
-- `.venv/` (recreated by Poetry)
+- `.venv/`
 
 > **Auto-fix:** runs `poetry install` to generate a fresh `poetry.lock`.
 
 ---
 
-#### `poetry audit` — Known CVEs
+#### `dependency groups` — Production vs development
 
-Runs `poetry audit` (built into Poetry 1.8+) and classifies results by severity:
-
-| Result | Condition |
-|---|---|
-| `OK` | No vulnerabilities found |
-| `WARN` | Only moderate or low severity |
-| `ERROR` | One or more critical or high severity vulnerabilities |
-
----
-
-#### `dependency groups` — Production vs development separation
-
-Validates that development dependencies (testing, linting, formatting) are in a separate group from production dependencies:
+Dev dependencies (testing, linting, formatting) must be separated from production to avoid widening the attack surface in deployed environments:
 
 ```toml
-[tool.poetry.dependencies]       # production
+[tool.poetry.dependencies]          # production
 python = ">=3.12"
 requests = "^2.31"
 
@@ -306,37 +254,91 @@ black = "^23.0"
 ruff = "^0.1.0"
 ```
 
-> **Auto-fix:** moves common dev packages (`pytest`, `black`, `ruff`, `mypy`) to the `dev` group if found in production dependencies.
+> **Auto-fix:** creates the `dev` group via `poetry add --group dev pytest`.
 
 ---
 
 #### `python version` — Pinned Python version
 
-Validates that `.python-version` exists with a specific `3.12.x` version, ensuring all developers and CI use the exact same Python:
+`.python-version` must exist with a `3.12.x` version to ensure all developers and CI environments use the exact same Python interpreter:
 
 ```
 3.12.7
 ```
 
-> **Auto-fix:** creates `.python-version` with the latest stable `3.12.x` version detected on the system.
+> **Auto-fix:** creates `.python-version` with `3.12.7`.
 
 ---
 
 #### `PyPI registry` — Official package source
 
-Validates that `pyproject.toml` does not have custom sources pointing to untrusted registries. All packages must come from the official PyPI:
-
-```
-https://pypi.org/simple/
-```
+`pyproject.toml` must not declare custom `[[tool.poetry.source]]` entries pointing to untrusted registries. A malicious registry could serve altered versions of legitimate packages.
 
 > **Auto-fix:** removes any non-official source entries from `pyproject.toml`.
 
 ---
 
-## Output example
+#### `renovate.json` — Minimum release age (shared)
 
-### Node.js / Bun project
+Both ecosystems enforce a waiting period before allowing dependency updates, giving the community time to detect newly poisoned versions:
+
+| Update type | Minimum age | Auto-merge |
+|---|---|---|
+| `patch` | 3 days | No |
+| `minor` | 7 days | No |
+| `major` | 30 days | No |
+
+> **Auto-fix:** creates `renovate.json` from the project template.
+
+Locksmith accepts `renovate.json` at the project root, `.github/renovate.json`, or `renovate.json5`.
+
+---
+
+## Package updates (`--outdated`)
+
+`locksmith --outdated` adds an update report after the security checks. For each outdated package it shows the available version, how many days ago it was published, and whether it meets the `minimumReleaseAge` policy from `renovate.json`.
+
+```
+📦 Paquetes desactualizados
+
+  PATCH  — política: 3d · sin breaking changes
+  ────────────────────────────────────────────────────────────────────────
+  ✓ picocolors   1.1.1 → 1.2.0   publicado hace 5d   ✅ política ok (3d)   $ pnpm update picocolors
+  ⏳ is-odd       3.0.0 → 3.0.1   publicado hace 1d   ⏳ muy reciente (faltan 2d)
+
+  MINOR  — política: 7d · nueva funcionalidad — revisar changelog
+  ────────────────────────────────────────────────────────────────────────
+  ✓ yargs        17.7.2 → 18.0.0  publicado hace 12d  ✅ política ok (7d)   $ pnpm update yargs
+
+  MAJOR  — política: 30d · breaking changes posibles — revisión obligatoria
+  ────────────────────────────────────────────────────────────────────────
+  ⏳ typescript   5.9.3 → 6.0.2   publicado hace 8d   ⏳ muy reciente (faltan 22d)
+
+  2 patch(es) listos para --fix · 1 requieren revisión manual · 2 en período de espera
+
+  Patches seguros disponibles → ejecuta con: locksmith . --outdated --fix
+
+  En período de espera:
+    is-odd      disponible en 2d
+    typescript  disponible en 22d
+```
+
+### Update safety rules
+
+| Update type | `--fix` applies? | Reason |
+|---|---|---|
+| `patch` | **Yes** — only if policy is met | Low risk, no breaking changes |
+| `minor` | No — shows manual command | New functionality, possible edge cases |
+| `major` | No — shows manual command | Breaking changes, always requires human review |
+| Any type within waiting period | No — shows when it will be ready | Too recent to trust |
+
+If no `renovate.json` is found, the default policy is applied (`patch: 3d · minor: 7d · major: 30d`) and a warning is shown.
+
+---
+
+## Output & reports
+
+### Terminal output
 
 ```
 🔐 locksmith
@@ -361,35 +363,11 @@ https://pypi.org/simple/
   8 ok
 ```
 
-### Python / Poetry project
-
-```
-🔐 locksmith
-
-   Analizando: /path/to/my-python-project
-
-✓ Proyecto: my-python-project [python]
-
-─────────────────────────────────────────────────────────────────────────
-  Check                  Estado   Detalle
-─────────────────────────────────────────────────────────────────────────
-  ✓ poetry version         OK       Poetry 1.8.3 instalado
-  ✓ pyproject.toml         OK       requires-python: >=3.12
-  ✓ poetry.toml            OK       virtualenvs.in-project: true
-  ✓ poetry.lock            OK       Lockfile presente (12.3 KB)
-  ✓ renovate.json          OK       Release delay: patch 3d · minor 7d · major 30d
-  ✓ poetry audit           OK       Sin vulnerabilidades conocidas
-  ✓ dependency groups      OK       dev: 4 paquetes · prod: 3 paquetes
-  ✓ python version         OK       Versión fijada: 3.12.7
-  ✓ PyPI registry          OK       Usando PyPI oficial: https://pypi.org/simple/
-─────────────────────────────────────────────────────────────────────────
-
-  9 ok
-```
+Checks that can be corrected show a `[--fix]` badge. After running `--fix`, corrected checks show `[fixed]` in green.
 
 ### Contextual hints
 
-For checks that need attention, locksmith displays detailed guidance below the table. Example for `renovate.json` not found:
+For checks that need attention, locksmith shows detailed guidance below the results table. Example for `renovate.json` not found:
 
 ```
   ℹ  renovate.json
@@ -405,48 +383,43 @@ For checks that need attention, locksmith displays detailed guidance below the t
        → Bitbucket: https://docs.renovatebot.com/modules/platform/bitbucket/
 ```
 
-For `renovate.json` passing, hints show the pnpm commands available to update dependencies manually:
+### Export (`--report`)
 
-```
-  ℹ  renovate.json
-     Para actualizar una dependencia manualmente sin esperar a Renovate:
-       $ pnpm update <paquete>          → actualiza a la última versión permitida
-       $ pnpm update <paquete> --latest → actualiza ignorando rangos de versión
-       $ pnpm add <paquete>@<version>   → instala una versión específica
+#### JSON
+
+```bash
+locksmith --report json
 ```
 
----
-
-## Report export
-
-### JSON (`--report json`)
-
-Generates `security-report.json` in the analyzed project directory:
+Generates `security-report.json` in the analyzed directory:
 
 ```json
 {
   "timestamp": "2026-04-07T10:00:00.000Z",
   "summary": { "ok": 8, "warn": 0, "error": 0 },
   "checks": [
-    {
-      "name": "pnpm version",
-      "status": "ok",
-      "message": "pnpm 10.25.0 instalado",
-      "fixable": false
-    }
+    { "name": "pnpm version", "status": "ok", "message": "pnpm 10.25.0 instalado", "fixable": false }
   ]
 }
 ```
 
-### Markdown (`--report markdown`)
+#### Markdown
 
-Generates `security-report.md` in the analyzed project directory with a formatted table.
+```bash
+locksmith --report markdown
+```
+
+Generates `security-report.md` with a formatted table — useful for including in PRs or internal documentation.
 
 ---
 
-## CI/CD Integration
+## CI/CD integration
 
-Add to your pipeline to block merges if security policies are not met:
+```bash
+locksmith . --strict
+```
+
+`--strict` exits with code `1` on any warning or error, blocking the merge. The command is the same regardless of ecosystem — locksmith auto-detects the language.
 
 ```yaml
 # GitHub Actions example
@@ -462,77 +435,7 @@ jobs:
         run: locksmith . --strict
 ```
 
-With `--strict`, the command exits with code `1` on any warning or error, causing the pipeline to fail.
-
-In CI environments (`$CI` is set), the installer automatically uses `--frozen-lockfile` to enforce lockfile integrity.
-
----
-
-## Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Run the CLI in dev mode
-bun run dev
-
-# Run tests
-bun test
-
-# Type check
-bun run lint
-
-# Build
-bun run build
-```
-
-### Project structure
-
-```
-locksmith/
-├── bin/
-│   └── cli.ts                          # CLI entry point (yargs)
-├── src/
-│   ├── checks/
-│   │   ├── index.ts                    # Orchestrator — detects language, runs checks
-│   │   ├── detect-project.ts           # Detects project type (node/bun/python)
-│   │   ├── node/
-│   │   │   ├── check-pnpm.ts           # pnpm version check
-│   │   │   ├── check-npmrc.ts          # .npmrc rules check
-│   │   │   ├── check-lockfile.ts       # pnpm-lock.yaml check
-│   │   │   ├── check-audit.ts          # CVE audit check
-│   │   │   ├── check-built-deps.ts     # Build script allowlist check
-│   │   │   ├── check-only-allow.ts     # only-allow pnpm check
-│   │   │   └── check-package-manager.ts # packageManager field check
-│   │   ├── python/
-│   │   │   ├── check-poetry.ts         # Poetry version check
-│   │   │   ├── check-pyproject.ts      # pyproject.toml + requires-python check
-│   │   │   ├── check-poetry-toml.ts    # poetry.toml virtualenv config check
-│   │   │   ├── check-poetry-lock.ts    # poetry.lock integrity check
-│   │   │   ├── check-poetry-audit.ts   # CVE audit check
-│   │   │   ├── check-dep-groups.ts     # dev/prod dependency separation check
-│   │   │   ├── check-python-version.ts # .python-version check
-│   │   │   └── check-pypi-source.ts    # PyPI registry check
-│   │   └── check-renovate.ts           # Shared — Renovate check (node + python)
-│   ├── reporter/
-│   │   ├── console.ts                  # Terminal output + contextual hints
-│   │   └── export.ts                   # JSON / Markdown export
-│   ├── fixer/
-│   │   └── apply.ts                    # Auto-fix implementations (node + python)
-│   └── types.ts                        # TypeScript interfaces
-├── templates/
-│   ├── .npmrc                          # Security .npmrc template (node)
-│   ├── poetry.toml                     # poetry.toml template (python)
-│   └── renovate.json                   # Renovate config template (shared)
-├── tests/
-│   ├── node/
-│   │   └── checks.test.ts              # Node checks test suite (37 tests)
-│   └── python/
-│       └── checks.test.ts              # Python checks test suite
-├── install.sh                          # Installer for macOS / Linux
-└── install.ps1                         # Installer for Windows (PowerShell)
-```
+In CI environments (where `$CI` is set), the installer automatically uses `--frozen-lockfile` to enforce lockfile integrity.
 
 ---
 
@@ -545,8 +448,8 @@ locksmith/
 | Malicious postinstall scripts | `ignore-scripts=true` + `onlyBuiltDependencies` |
 | Tampered packages in transit | `strict-ssl=true` |
 | Tampered packages in local store | `verify-store-integrity=true` |
-| Lockfile overwrite / floating versions | `frozen-lockfile=true` + lockfile presence check |
-| Newly poisoned package versions | `minimumReleaseAge` in Renovate |
+| Lockfile overwrite / floating versions | `frozen-lockfile=true` + lockfile check |
+| Newly poisoned package versions | `minimumReleaseAge` in Renovate + `--outdated` |
 | Multiple package managers altering lockfile | `only-allow pnpm` |
 | pnpm version downgrade attacks | `packageManager` field |
 | Known CVEs in dependencies | `pnpm audit` |
@@ -557,12 +460,87 @@ locksmith/
 |---|---|
 | Packages from untrusted sources | PyPI registry validation |
 | Floating / unpinned versions | `poetry.lock` presence + integrity check |
-| Newly poisoned package versions | `minimumReleaseAge` in Renovate |
+| Newly poisoned package versions | `minimumReleaseAge` in Renovate + `--outdated` |
 | Dev dependencies leaking to production | dependency groups separation |
-| Python version inconsistency across environments | `.python-version` pinned to `3.12.x` |
+| Python version inconsistency | `.python-version` pinned to `3.12.x` |
 | Known CVEs in dependencies | `poetry audit` |
 | Insecure virtualenv setup | `poetry.toml` with `in-project = true` |
 
-> **Note:** Unlike Node.js, Python does not have a native equivalent to `ignore-scripts=true`. Poetry mitigates this by preferring pre-compiled wheels over running `setup.py`, but it is not a complete guarantee. This is a known limitation of the Python ecosystem.
+> **Python limitation:** Unlike Node.js, Python has no native equivalent to `ignore-scripts=true`. Poetry mitigates this by preferring pre-compiled wheels over running `setup.py`, but it is not a complete guarantee.
 
-> **Note:** `pnpm audit` and `poetry audit` only cover **known CVEs**. They do not detect typosquatting or unknown malicious packages. For that layer of protection, consider complementary tools such as [Socket.dev](https://socket.dev).
+> **Audit limitation:** `pnpm audit` and `poetry audit` only cover **known CVEs**. They do not detect typosquatting or brand-new malicious packages. For that layer, consider [Socket.dev](https://socket.dev).
+
+---
+
+## Development
+
+```bash
+pnpm install      # Install dependencies
+bun run dev       # Run the CLI in dev mode
+bun test          # Run tests (102 tests)
+bun run lint      # Type check
+bun run build     # Build
+```
+
+### Project structure
+
+```
+locksmith/
+├── bin/
+│   └── cli.ts                  # CLI entry point (yargs)
+├── src/
+│   ├── checks/
+│   │   ├── index.ts             # Orchestrator — detects language, runs checks in parallel
+│   │   ├── detect-project.ts    # Detects project type (node / bun / python)
+│   │   ├── check-renovate.ts    # Renovate check — shared between Node and Python
+│   │   ├── check-pnpm.ts        # pnpm version
+│   │   ├── check-npmrc.ts       # .npmrc rules
+│   │   ├── check-lockfile.ts    # pnpm-lock.yaml
+│   │   ├── check-audit.ts       # pnpm CVE audit
+│   │   ├── check-built-deps.ts  # onlyBuiltDependencies
+│   │   ├── check-only-allow.ts  # only-allow pnpm
+│   │   ├── check-package-manager.ts  # packageManager field
+│   │   └── python/
+│   │       ├── check-poetry.ts         # Poetry version
+│   │       ├── check-pyproject.ts      # pyproject.toml + requires-python
+│   │       ├── check-poetry-toml.ts    # virtualenvs.in-project
+│   │       ├── check-poetry-lock.ts    # poetry.lock integrity
+│   │       ├── check-poetry-audit.ts   # Poetry CVE audit
+│   │       ├── check-dep-groups.ts     # dev/prod dependency separation
+│   │       ├── check-python-version.ts # .python-version
+│   │       └── check-pypi-source.ts    # PyPI registry
+│   ├── outdated/
+│   │   ├── index.ts             # Orchestrator — runs pnpm/poetry outdated
+│   │   ├── classify.ts          # Pure functions: semver classification + Renovate policy
+│   │   ├── fetch-dates.ts       # Publish date lookup via npm / PyPI registry API
+│   │   └── reporter.ts          # Terminal output for outdated packages
+│   ├── reporter/
+│   │   ├── console.ts           # Terminal output + contextual hints
+│   │   └── export.ts            # JSON / Markdown export
+│   ├── fixer/
+│   │   └── apply.ts             # All auto-fix implementations (Node + Python)
+│   └── types.ts                 # TypeScript interfaces
+├── templates/
+│   ├── .npmrc                   # Security .npmrc template
+│   ├── poetry.toml              # poetry.toml template
+│   └── renovate.json            # Renovate config template
+├── tests/
+│   └── checks.test.ts           # 102 tests (Node + Python checks, fixers, outdated)
+├── install.sh                   # Installer for macOS / Linux
+└── install.ps1                  # Installer for Windows (PowerShell)
+```
+
+---
+
+## References
+
+| Tool | Documentation |
+|---|---|
+| pnpm | [pnpm.io/motivation](https://pnpm.io/motivation) |
+| pnpm CLI | [pnpm.io/cli/install](https://pnpm.io/cli/install) |
+| pnpm security | [pnpm.io/security](https://pnpm.io/security) |
+| Poetry | [python-poetry.org/docs](https://python-poetry.org/docs/) |
+| Poetry CLI | [python-poetry.org/docs/cli](https://python-poetry.org/docs/cli/) |
+| Poetry configuration | [python-poetry.org/docs/configuration](https://python-poetry.org/docs/configuration/) |
+| Renovate | [docs.renovatebot.com](https://docs.renovatebot.com) |
+| Socket.dev | [socket.dev](https://socket.dev) |
