@@ -22,6 +22,11 @@ yargs(hideBin(process.argv))
           description: "Aplica correcciones automáticas",
           default: false,
         })
+        .option("fix-dockerfile", {
+          type: "boolean",
+          description: "Analiza y corrige Dockerfile del proyecto (Node y Python)",
+          default: false,
+        })
         .option("report", {
           type: "string",
           choices: ["json", "markdown"] as const,
@@ -39,11 +44,12 @@ yargs(hideBin(process.argv))
         }),
     async (argv) => {
       const opts: RunOptions = {
-        projectPath: argv.path as string,
-        fix: argv.fix,
-        report: argv.report as "json" | "markdown" | undefined,
-        strict: argv.strict,
-        outdated: argv.outdated,
+        projectPath:   argv.path as string,
+        fix:           argv.fix,
+        fixDockerfile: argv["fix-dockerfile"] as boolean,
+        report:        argv.report as "json" | "markdown" | undefined,
+        strict:        argv.strict,
+        outdated:      argv.outdated,
       };
       await runAllChecks(opts);
     }

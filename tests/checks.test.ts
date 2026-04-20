@@ -1200,3 +1200,260 @@ MIIEowIBAAKCAQEA0Z3VS5JJcds3xHn
     expect(r.message).toMatch(/2.*secret/i);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DOCKER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { analyzeDockerfile, buildProposedContent } from "../src/docker/analyze-dockerfile";
+import { applyDockerfileFix } from "../src/docker/fix-dockerfile";
+
+function writeDockerfile(content: string, name = "Dockerfile") {
+  writeFileSync(join(TMP, name), content);
+}
+
+// ─── analyzeDockerfile — sin Dockerfile ─────────────────────────────────────
+
+describe("analyzeDockerfile — sin Dockerfile", () => {
+  it("retorna found=false si no hay Dockerfile", () => {
+    writePkg();
+    const results = analyzeDockerfile(TMP, "node");
+    expect(results).toHaveLength(1);
+    expect(results[0]!.found).toBe(false);
+    expect(results[0]!.issues).toHaveLength(0);
+  });
+});
+
+// ─── analyzeDockerfile — Node ────────────────────────────────────────────────
+
+describe("analyzeDockerfile — Node", () => {
+  it("detecta pnpm no pinned en npm install -g pnpm", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile("FROM node:20\nRUN npm install -g pnpm\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.kind === "pin-version");
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toContain("pnpm@10.25.0");
+  });
+
+  it("no reporta pin-version si pnpm ya está pinned", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile("FROM node:20\nRUN npm install -g pnpm@10.25.0\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "pin-version")).toHaveLength(0);
+  });
+
+  it("detecta pnpm install sin --frozen-lockfile y --ignore-scripts", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nCOPY .npmrc .\nRUN pnpm install\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const flagIssue = r!.issues.find(x => x.kind === "missing-flag");
+    expect(flagIssue).toBeDefined();
+    expect(flagIssue!.description).toContain("--frozen-lockfile");
+    expect(flagIssue!.description).toContain("--ignore-scripts");
+  });
+
+  it("no reporta missing-flag si pnpm install tiene ambos flags", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "missing-flag")).toHaveLength(0);
+  });
+
+  it("detecta .npmrc no copiado antes de pnpm install", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nRUN pnpm install\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const copyIssue = r!.issues.find(x => x.kind === "missing-copy");
+    expect(copyIssue).toBeDefined();
+    expect(copyIssue!.replacement).toBe("COPY .npmrc .");
+  });
+
+  it("no reporta missing-copy si .npmrc ya está copiado antes del install", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "missing-copy")).toHaveLength(0);
+  });
+
+  it("detecta corepack prepare pnpm sin versión", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile("FROM node:20\nRUN corepack enable && corepack prepare pnpm\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.kind === "pin-version");
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toContain("pnpm@10.25.0");
+  });
+
+  it("Dockerfile correcto — cero issues", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile([
+      "FROM node:20",
+      "RUN npm install -g pnpm@10.25.0",
+      "COPY .npmrc .",
+      "COPY package.json pnpm-lock.yaml ./",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues).toHaveLength(0);
+    expect(r!.proposedContent).toBeNull();
+  });
+
+  it("detecta múltiples Dockerfiles (Dockerfile + Dockerfile.dev)", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nRUN pnpm install\n", "Dockerfile");
+    writeDockerfile("FROM node:20\nRUN pnpm install\n", "Dockerfile.dev");
+    const results = analyzeDockerfile(TMP, "node");
+    expect(results).toHaveLength(2);
+    expect(results.every(r => r.found)).toBe(true);
+  });
+});
+
+// ─── analyzeDockerfile — Python ──────────────────────────────────────────────
+
+describe("analyzeDockerfile — Python", () => {
+  it("detecta poetry install sin --no-interaction y --no-root", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nCOPY . .\nRUN poetry install\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    const flagIssue = r!.issues.find(x => x.kind === "missing-flag");
+    expect(flagIssue).toBeDefined();
+    expect(flagIssue!.description).toContain("--no-interaction");
+    expect(flagIssue!.description).toContain("--no-root");
+  });
+
+  it("no reporta missing-flag si poetry install tiene ambos flags", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nCOPY . .\nRUN poetry install --no-interaction --no-root\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    expect(r!.issues.filter(x => x.kind === "missing-flag")).toHaveLength(0);
+  });
+
+  it("detecta .python-version no copiado antes de poetry install", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nRUN poetry install\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    const copyIssue = r!.issues.find(x => x.replacement === "COPY .python-version .");
+    expect(copyIssue).toBeDefined();
+  });
+
+  it("detecta poetry.toml no copiado antes de poetry install", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nCOPY .python-version .\nRUN poetry install\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    const copyIssue = r!.issues.find(x => x.replacement === "COPY poetry.toml .");
+    expect(copyIssue).toBeDefined();
+  });
+
+  it("no reporta missing-copy si COPY . . cubre todos los archivos", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nCOPY . .\nRUN poetry install --no-interaction --no-root\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    expect(r!.issues.filter(x => x.kind === "missing-copy")).toHaveLength(0);
+  });
+
+  it("detecta pip install sin --no-cache-dir", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nRUN pip install requests\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    const issue = r!.issues.find(x => x.kind === "missing-flag");
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toContain("--no-cache-dir");
+  });
+
+  it("detecta pip install -r requirements.txt como advisory", () => {
+    writePyproject();
+    writeDockerfile("FROM python:3.12\nRUN pip install --no-cache-dir -r requirements.txt\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    const advisory = r!.issues.find(x => x.kind === "advisory");
+    expect(advisory).toBeDefined();
+    expect(advisory!.replacement).toBeNull();
+  });
+
+  it("Dockerfile correcto — cero issues", () => {
+    writePyproject();
+    writeDockerfile([
+      "FROM python:3.12",
+      "COPY .python-version .",
+      "COPY poetry.toml .",
+      "COPY pyproject.toml poetry.lock ./",
+      "RUN poetry install --no-interaction --no-root",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "python");
+    expect(r!.issues).toHaveLength(0);
+  });
+});
+
+// ─── buildProposedContent ────────────────────────────────────────────────────
+
+describe("buildProposedContent", () => {
+  it("inserta COPY .npmrc antes de RUN pnpm install", () => {
+    const lines = ["FROM node:20", "RUN pnpm install"];
+    const issues = [{
+      line: 2, kind: "missing-copy" as const,
+      description: "", original: "RUN pnpm install", replacement: "COPY .npmrc .",
+    }];
+    const result = buildProposedContent(lines, issues);
+    expect(result).toBe("FROM node:20\nCOPY .npmrc .\nRUN pnpm install");
+  });
+
+  it("agrega flags a RUN pnpm install", () => {
+    const lines = ["FROM node:20", "RUN pnpm install"];
+    const issues = [{
+      line: 2, kind: "missing-flag" as const,
+      description: "", original: "RUN pnpm install",
+      replacement: "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    }];
+    const result = buildProposedContent(lines, issues);
+    expect(result).toContain("--frozen-lockfile --ignore-scripts");
+  });
+
+  it("combina COPY + flags en la misma línea", () => {
+    const lines = ["FROM node:20", "RUN pnpm install"];
+    const issues = [
+      { line: 2, kind: "missing-copy" as const, description: "", original: "RUN pnpm install", replacement: "COPY .npmrc ." },
+      { line: 2, kind: "missing-flag" as const, description: "", original: "RUN pnpm install", replacement: "RUN pnpm install --frozen-lockfile --ignore-scripts" },
+    ];
+    const result = buildProposedContent(lines, issues);
+    const resultLines = result.split("\n");
+    expect(resultLines[1]).toBe("COPY .npmrc .");
+    expect(resultLines[2]).toBe("RUN pnpm install --frozen-lockfile --ignore-scripts");
+  });
+});
+
+// ─── applyDockerfileFix ──────────────────────────────────────────────────────
+
+describe("applyDockerfileFix", () => {
+  it("escribe proposedContent al archivo", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile("FROM node:20\nRUN pnpm install\n");
+
+    const [analysis] = analyzeDockerfile(TMP, "node");
+    expect(analysis!.proposedContent).not.toBeNull();
+
+    applyDockerfileFix(analysis!);
+
+    const written = readFileSync(join(TMP, "Dockerfile"), "utf-8");
+    expect(written).toContain("COPY .npmrc .");
+    expect(written).toContain("--frozen-lockfile");
+    expect(written).toContain("--ignore-scripts");
+  });
+
+  it("no hace nada si proposedContent es null", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    const original = [
+      "FROM node:20",
+      "RUN npm install -g pnpm@10.25.0",
+      "COPY .npmrc .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n";
+    writeDockerfile(original);
+
+    const [analysis] = analyzeDockerfile(TMP, "node");
+    expect(analysis!.proposedContent).toBeNull();
+    applyDockerfileFix(analysis!);
+
+    const written = readFileSync(join(TMP, "Dockerfile"), "utf-8");
+    expect(written).toBe(original);
+  });
+});

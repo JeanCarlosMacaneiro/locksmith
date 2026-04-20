@@ -5,6 +5,9 @@ import { printReport }        from "../reporter/console";
 import { exportReport }       from "../reporter/export";
 import { applyFixes }         from "../fixer/apply";
 import { runOutdated }        from "../outdated/index";
+import { analyzeDockerfile }  from "../docker/analyze-dockerfile";
+import { showDockerWarnings } from "../docker/prompt-dockerfile";
+import { promptDockerFix }    from "../docker/prompt-dockerfile";
 import type { RunOptions }    from "../types";
 
 // ── Shared checks ─────────────────────────────────────────────────────────────
@@ -63,6 +66,19 @@ async function runChecks(projectPath: string, type: string) {
   ]);
 }
 
+async function runDockerfileFlow(
+  projectPath: string,
+  projectType: string,
+  mode: "check" | "fix"
+): Promise<void> {
+  const analyses = analyzeDockerfile(projectPath, projectType);
+  if (mode === "fix") {
+    await promptDockerFix(analyses, projectPath);
+  } else {
+    await showDockerWarnings(analyses, projectPath);
+  }
+}
+
 export async function runAllChecks(opts: RunOptions) {
   console.log(pc.bold("\n🔐 locksmith\n"));
   console.log(pc.dim(`   Analizando: ${opts.projectPath}\n`));
@@ -78,6 +94,12 @@ export async function runAllChecks(opts: RunOptions) {
     pc.green(`✓ Proyecto: ${pc.bold(project.name)} [${project.type}]\n`)
   );
 
+  // --fix-dockerfile only: skip security checks, just analyze Docker
+  if (opts.fixDockerfile && !opts.fix) {
+    await runDockerfileFlow(opts.projectPath, project.type, "fix");
+    process.exit(0);
+  }
+
   const results = await runChecks(opts.projectPath, project.type);
 
   printReport(results);
@@ -89,7 +111,7 @@ export async function runAllChecks(opts: RunOptions) {
 
     const reResults = (await runChecks(opts.projectPath, project.type))
       .map((r, i) => {
-        const before  = results[i];
+        const before   = results[i];
         const wasFixed = before!.status !== "ok" && r.status === "ok";
         return { ...r, wasFixed };
       });
@@ -104,6 +126,8 @@ export async function runAllChecks(opts: RunOptions) {
       console.log(pc.bold("\n🔍 Verificando paquetes desactualizados...\n"));
       await runOutdated(opts.projectPath, project.type, true);
     }
+
+    await runDockerfileFlow(opts.projectPath, project.type, "fix");
 
     const hasErrors   = reResults.some((r) => r.status === "error");
     const hasWarnings = reResults.some((r) => r.status === "warn");
@@ -120,6 +144,8 @@ export async function runAllChecks(opts: RunOptions) {
     console.log(pc.bold("\n🔍 Verificando paquetes desactualizados...\n"));
     await runOutdated(opts.projectPath, project.type, opts.fix);
   }
+
+  await runDockerfileFlow(opts.projectPath, project.type, "check");
 
   const hasErrors   = results.some((r) => r.status === "error");
   const hasWarnings = results.some((r) => r.status === "warn");

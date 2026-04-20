@@ -53,13 +53,15 @@ locksmith [path] [options]
 |---|---|
 | `[path]` | Path to the project to analyze (default: current directory) |
 | `--fix` | Automatically apply available corrections |
+| `--fix-dockerfile` | Analyze and fix Dockerfile for the project (Node.js and Python) |
 | `--outdated` | Check for outdated packages against Renovate policy delays |
 | `--report json\|markdown` | Export results to a file |
 | `--strict` | Exit with code `1` on warnings (not only errors) |
 
 ```bash
-locksmith                        # Run security checks
-locksmith --fix                  # Auto-fix all fixable issues
+locksmith                        # Run security checks + Dockerfile warnings
+locksmith --fix                  # Auto-fix all fixable issues + prompt Dockerfile update
+locksmith --fix-dockerfile       # Only analyze and fix Dockerfile (skips security checks)
 locksmith --outdated             # Show outdated packages
 locksmith --outdated --fix       # Apply safe patch updates
 locksmith --strict               # Block on warnings too
@@ -97,6 +99,31 @@ locksmith --strict               # Block on warnings too
 
 Results can be exported with `--report json` or `--report markdown`.
 
+### Dockerfile analysis
+
+When a `Dockerfile` is found, locksmith automatically analyzes it for security issues:
+
+```
+🐳 Dockerfile: Dockerfile
+
+  Problemas encontrados:
+  ⚠  L12  pin-version   pnpm no pinned — versión puede diferir en producción
+  ⚠  L18  missing-flag  pnpm install sin --frozen-lockfile, --ignore-scripts
+  ⚠  L15  missing-copy  .npmrc no copiado antes de pnpm install
+
+  → ejecuta locksmith --fix-dockerfile para corregir
+```
+
+| Mode | Behavior |
+|---|---|
+| `locksmith` | Shows Dockerfile warnings inline, no changes |
+| `locksmith --fix` | After fixing security issues, prompts to update Dockerfile |
+| `locksmith --fix-dockerfile` | Only analyzes Dockerfile, prompts to apply fixes |
+
+**Node.js checks:** pnpm version pinned, `--frozen-lockfile`, `--ignore-scripts`, `.npmrc` copied before install, `corepack prepare` version.
+
+**Python checks:** `--no-interaction`, `--no-root` on `poetry install`, `.python-version` and `poetry.toml` copied before install, `--no-cache-dir` on `pip install`.
+
 ---
 
 ## CI/CD
@@ -129,3 +156,4 @@ jobs:
 - [docs/checks-python.md](docs/checks-python.md) — Python / Poetry: 11 checks with details and examples
 - [docs/outdated.md](docs/outdated.md) — `--outdated`: safety rules, Renovate policy, output reference
 - [docs/development.md](docs/development.md) — Project structure, dev setup, how to add a check
+- [docs/dockerfile.md](docs/dockerfile.md) — `--fix-dockerfile`: what is checked, Node.js and Python patterns
