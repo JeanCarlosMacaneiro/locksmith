@@ -1,6 +1,6 @@
 {
   "name": "locksmith",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Security policy checker for Node/Bun projects using pnpm",
   "type": "module",
   "bin": {
