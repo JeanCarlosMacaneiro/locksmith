@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "bun run ./bin/cli.ts",
-    "build": "bun build ./bin/cli.ts --outdir ./dist --target node --minify",
+    "build": "bun build ./bin/cli.ts --outdir ./dist --target bun --minify",
     "test": "bun test",
     "lint": "bunx tsc --noEmit",
     "preinstall": "npx only-allow pnpm"

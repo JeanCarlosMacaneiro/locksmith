@@ -29,7 +29,7 @@ export interface RunOptions {
 
 // ─── docker ──────────────────────────────────────────────────────────────────
 
-export type DockerIssueKind = "pin-version" | "missing-flag" | "missing-copy" | "advisory";
+export type DockerIssueKind = "pin-version" | "missing-flag" | "missing-copy" | "missing-cmd" | "update-from" | "advisory";
 
 export interface DockerIssue {
   line: number;

@@ -1,0 +1,9 @@
+FROM python:3.12-slim
+WORKDIR /usr/src/app
+COPY .python-version .
+COPY poetry.toml .
+COPY pyproject.toml poetry.lock ./
+RUN pip install --no-cache-dir poetry==1.8.0
+RUN poetry install --no-interaction --no-root
+COPY . .
+CMD ["python", "-m", "app"]

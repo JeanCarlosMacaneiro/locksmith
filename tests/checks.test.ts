@@ -1222,6 +1222,20 @@ describe("analyzeDockerfile — sin Dockerfile", () => {
     expect(results[0]!.found).toBe(false);
     expect(results[0]!.issues).toHaveLength(0);
   });
+
+  it("detecta dockerfile en lowercase", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n", "dockerfile");
+    const results = analyzeDockerfile(TMP, "node");
+    expect(results[0]!.found).toBe(true);
+  });
+
+  it("detecta DOCKERFILE en uppercase", () => {
+    writePkg();
+    writeDockerfile("FROM node:20\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n", "DOCKERFILE");
+    const results = analyzeDockerfile(TMP, "node");
+    expect(results[0]!.found).toBe(true);
+  });
 });
 
 // ─── analyzeDockerfile — Node ────────────────────────────────────────────────
@@ -1269,9 +1283,9 @@ describe("analyzeDockerfile — Node", () => {
     expect(copyIssue!.replacement).toBe("COPY .npmrc .");
   });
 
-  it("no reporta missing-copy si .npmrc ya está copiado antes del install", () => {
+  it("no reporta missing-copy si .npmrc y pnpm-lock.yaml copiados antes del install", () => {
     writePkg();
-    writeDockerfile("FROM node:20\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    writeDockerfile("FROM node:20\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nCOPY pnpm-lock.yaml .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
     const [r] = analyzeDockerfile(TMP, "node");
     expect(r!.issues.filter(x => x.kind === "missing-copy")).toHaveLength(0);
   });
@@ -1292,11 +1306,31 @@ describe("analyzeDockerfile — Node", () => {
       "RUN npm install -g pnpm@10.25.0",
       "COPY .npmrc .",
       "COPY package.json pnpm-lock.yaml ./",
+      "ENV CI=true",
       "RUN pnpm install --frozen-lockfile --ignore-scripts",
     ].join("\n") + "\n");
     const [r] = analyzeDockerfile(TMP, "node");
     expect(r!.issues).toHaveLength(0);
     expect(r!.proposedContent).toBeNull();
+  });
+
+  it("no reemplaza npm install -g (global install) en proyecto pnpm", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile("FROM node:20\nRUN npm install -g @angular/cli\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const pnpmIssue = r!.issues.find(x => x.description.includes("pnpm pero Dockerfile"));
+    expect(pnpmIssue).toBeUndefined();
+  });
+
+  it("reemplaza npm install --silent --force con pnpm install en proyecto pnpm", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile("FROM node:20\nRUN npm install --silent --force\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.description.includes("pnpm pero Dockerfile"));
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toContain("pnpm install");
+    expect(r!.proposedContent).toContain("pnpm install");
+    expect(r!.proposedContent).not.toContain("npm install --silent");
   });
 
   it("detecta múltiples Dockerfiles (Dockerfile + Dockerfile.dev)", () => {
@@ -1353,7 +1387,6 @@ describe("analyzeDockerfile — Python", () => {
   });
 
   it("detecta pip install sin --no-cache-dir", () => {
-    writePyproject();
     writeDockerfile("FROM python:3.12\nRUN pip install requests\n");
     const [r] = analyzeDockerfile(TMP, "python");
     const issue = r!.issues.find(x => x.kind === "missing-flag");
@@ -1362,7 +1395,6 @@ describe("analyzeDockerfile — Python", () => {
   });
 
   it("detecta pip install -r requirements.txt como advisory", () => {
-    writePyproject();
     writeDockerfile("FROM python:3.12\nRUN pip install --no-cache-dir -r requirements.txt\n");
     const [r] = analyzeDockerfile(TMP, "python");
     const advisory = r!.issues.find(x => x.kind === "advisory");
@@ -1381,6 +1413,361 @@ describe("analyzeDockerfile — Python", () => {
     ].join("\n") + "\n");
     const [r] = analyzeDockerfile(TMP, "python");
     expect(r!.issues).toHaveLength(0);
+  });
+});
+
+// ─── analyzeDockerfile — FROM version ────────────────────────────────────────
+
+describe("analyzeDockerfile — FROM version", () => {
+  it("detecta FROM node:16-alpine — update-from con node:20-alpine", () => {
+    writePkg();
+    writeDockerfile("FROM node:16-alpine\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.kind === "update-from");
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toContain("node:20-alpine");
+  });
+
+  it("detecta FROM node:18-alpine — update-from", () => {
+    writePkg();
+    writeDockerfile("FROM node:18-alpine\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.find(x => x.kind === "update-from")).toBeDefined();
+  });
+
+  it("no reporta update-from si FROM node:20-alpine", () => {
+    writePkg();
+    writeDockerfile("FROM node:20-alpine\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "update-from")).toHaveLength(0);
+  });
+
+  it("no reporta update-from si FROM node:22", () => {
+    writePkg();
+    writeDockerfile("FROM node:22\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "update-from")).toHaveLength(0);
+  });
+
+  it("preserva sufijo alpine en reemplazo: node:18-alpine → node:20-alpine", () => {
+    writePkg();
+    writeDockerfile("FROM node:18-alpine AS builder\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.kind === "update-from");
+    expect(issue!.replacement).toBe("FROM node:20-alpine AS builder");
+  });
+
+  it("detecta FROM node:18 en ambos stages multi-stage", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:18-alpine AS builder",
+      "RUN npm install -g pnpm@10.25.0",
+      "COPY .npmrc .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+      "FROM node:18-alpine",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "update-from")).toHaveLength(2);
+  });
+
+  it("no analiza RUN npm en stage nginx", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine AS build",
+      "RUN npm install -g pnpm@10.25.0",
+      "COPY .npmrc .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+      "FROM nginx:alpine",
+      "RUN npm install --silent",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const nginxIssue = r!.issues.find(x => x.line === 6);
+    expect(nginxIssue).toBeUndefined();
+  });
+});
+
+// ─── analyzeDockerfile — multi-stage state reset ──────────────────────────────
+
+describe("analyzeDockerfile — multi-stage state reset", () => {
+  it("resetea npmrcCopied al entrar a nuevo stage", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine AS build",
+      "COPY . .",
+      "RUN npm install -g pnpm@10.25.0",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+      "FROM node:20-alpine",
+      "RUN npm install -g pnpm@10.25.0",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const copyIssue = r!.issues.find(x => x.kind === "missing-copy");
+    expect(copyIssue).toBeDefined();
+    expect(copyIssue!.line).toBe(7);
+  });
+
+  it("no reporta issues en stage nginx después de stage node correcto", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine AS build",
+      "RUN npm install -g pnpm@10.25.0",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+      "FROM nginx:alpine",
+      "COPY --from=build /app/dist /usr/share/nginx/html",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues).toHaveLength(0);
+  });
+});
+
+// ─── analyzeDockerfile — pnpm no instalado ────────────────────────────────────
+
+describe("analyzeDockerfile — pnpm no instalado", () => {
+  it("detecta missing-cmd si pnpm install sin corepack enable previo", () => {
+    writePkg();
+    writeDockerfile("FROM node:20-alpine\nCOPY .npmrc .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.kind === "missing-cmd");
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toBe("RUN corepack enable");
+  });
+
+  it("no reporta missing-cmd si hay npm install -g pnpm@X antes", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN npm install -g pnpm@10.25.0",
+      "COPY .npmrc .",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "missing-cmd")).toHaveLength(0);
+  });
+
+  it("no reporta missing-cmd si hay corepack enable antes", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "missing-cmd")).toHaveLength(0);
+  });
+
+  it("no reporta missing-cmd si hay corepack prepare pnpm antes", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable && corepack prepare pnpm@10.25.0 --activate",
+      "COPY .npmrc .",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "missing-cmd")).toHaveLength(0);
+  });
+
+  it("Dockerfile completo correcto — cero issues", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY package.json pnpm-lock.yaml ./",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues).toHaveLength(0);
+    expect(r!.proposedContent).toBeNull();
+  });
+});
+
+// ─── analyzeDockerfile — ENV CI ──────────────────────────────────────────────
+
+describe("analyzeDockerfile — ENV CI", () => {
+  it("detecta missing-cmd ENV CI=true si falta antes de pnpm install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.replacement === "ENV CI=true");
+    expect(issue).toBeDefined();
+    expect(issue!.kind).toBe("missing-cmd");
+  });
+
+  it("no reporta ENV CI si ya está declarado antes del install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.find(x => x.replacement === "ENV CI=true")).toBeUndefined();
+  });
+
+  it("buildProposedContent inserta ENV CI=true antes de pnpm install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const lines = r!.proposedContent!.split("\n");
+    const ciLine      = lines.indexOf("ENV CI=true");
+    const installLine = lines.findIndex(l => l.includes("pnpm install"));
+    expect(ciLine).toBeGreaterThanOrEqual(0);
+    expect(ciLine).toBeLessThan(installLine);
+  });
+
+  it("ENV CI=true reseteado entre stages — segundo stage sin CI genera issue", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine AS build",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "ENV CI=true",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const ciIssues = r!.issues.filter(x => x.replacement === "ENV CI=true");
+    expect(ciIssues).toHaveLength(1);
+    expect(ciIssues[0]!.line).toBe(11);
+  });
+});
+
+// ─── analyzeDockerfile — pnpm-lock.yaml no copiado ───────────────────────────
+
+describe("analyzeDockerfile — pnpm-lock.yaml no copiado", () => {
+  it("detecta missing-copy pnpm-lock.yaml si solo se copia package.json", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY package.json package.json",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.replacement === "COPY pnpm-lock.yaml .");
+    expect(issue).toBeDefined();
+    expect(issue!.kind).toBe("missing-copy");
+  });
+
+  it("no reporta missing-copy si COPY pnpm-lock.yaml antes del install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.find(x => x.replacement === "COPY pnpm-lock.yaml .")).toBeUndefined();
+  });
+
+  it("no reporta missing-copy si COPY package.json pnpm-lock.yaml ./ antes del install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY package.json pnpm-lock.yaml ./",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.find(x => x.replacement === "COPY pnpm-lock.yaml .")).toBeUndefined();
+  });
+
+  it("no reporta missing-copy si COPY . . antes del install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY . .",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.find(x => x.replacement === "COPY pnpm-lock.yaml .")).toBeUndefined();
+  });
+
+  it("buildProposedContent inserta COPY pnpm-lock.yaml antes del install", () => {
+    writePkg();
+    writeDockerfile([
+      "FROM node:20-alpine",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY package.json package.json",
+      "RUN pnpm install --frozen-lockfile --ignore-scripts",
+    ].join("\n") + "\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.proposedContent).toContain("COPY pnpm-lock.yaml .");
+    const lines = r!.proposedContent!.split("\n");
+    const lockfileLine = lines.indexOf("COPY pnpm-lock.yaml .");
+    const installLine  = lines.findIndex(l => l.includes("pnpm install"));
+    expect(lockfileLine).toBeLessThan(installLine);
+  });
+});
+
+// ─── analyzeDockerfile — FROM AS casing ──────────────────────────────────────
+
+describe("analyzeDockerfile — FROM AS casing", () => {
+  it("detecta 'as' lowercase en FROM y genera update-from", () => {
+    writePkg();
+    writeDockerfile("FROM node:20-alpine as builder\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issue = r!.issues.find(x => x.kind === "update-from");
+    expect(issue).toBeDefined();
+    expect(issue!.replacement).toBe("FROM node:20-alpine AS builder");
+  });
+
+  it("no reporta update-from si FROM usa AS uppercase y version ok", () => {
+    writePkg();
+    writeDockerfile("FROM node:20-alpine AS builder\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "update-from")).toHaveLength(0);
+  });
+
+  it("combina node:16 + as lowercase en un solo update-from", () => {
+    writePkg();
+    writeDockerfile("FROM node:16-alpine as builder\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    const issues = r!.issues.filter(x => x.kind === "update-from");
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.replacement).toBe("FROM node:20-alpine AS builder");
+  });
+
+  it("no reporta casing si FROM no tiene stage alias", () => {
+    writePkg();
+    writeDockerfile("FROM node:20-alpine\nRUN npm install -g pnpm@10.25.0\nCOPY .npmrc .\nCOPY pnpm-lock.yaml .\nRUN pnpm install --frozen-lockfile --ignore-scripts\n");
+    const [r] = analyzeDockerfile(TMP, "node");
+    expect(r!.issues.filter(x => x.kind === "update-from")).toHaveLength(0);
   });
 });
 
@@ -1419,6 +1806,29 @@ describe("buildProposedContent", () => {
     expect(resultLines[1]).toBe("COPY .npmrc .");
     expect(resultLines[2]).toBe("RUN pnpm install --frozen-lockfile --ignore-scripts");
   });
+
+  it("update-from reemplaza línea FROM", () => {
+    const lines = ["FROM node:18-alpine AS builder", "RUN pnpm install"];
+    const issues = [{
+      line: 1, kind: "update-from" as const,
+      description: "", original: "FROM node:18-alpine AS builder",
+      replacement: "FROM node:20-alpine AS builder",
+    }];
+    const result = buildProposedContent(lines, issues);
+    expect(result.split("\n")[0]).toBe("FROM node:20-alpine AS builder");
+  });
+
+  it("missing-cmd inserta RUN corepack enable antes del install", () => {
+    const lines = ["FROM node:20", "RUN pnpm install"];
+    const issues = [{
+      line: 2, kind: "missing-cmd" as const,
+      description: "", original: "RUN pnpm install", replacement: "RUN corepack enable",
+    }];
+    const result = buildProposedContent(lines, issues);
+    const resultLines = result.split("\n");
+    expect(resultLines[1]).toBe("RUN corepack enable");
+    expect(resultLines[2]).toBe("RUN pnpm install");
+  });
 });
 
 // ─── applyDockerfileFix ──────────────────────────────────────────────────────
@@ -1439,12 +1849,36 @@ describe("applyDockerfileFix", () => {
     expect(written).toContain("--ignore-scripts");
   });
 
+  it("aplica reemplazo npm→pnpm y modifica el archivo", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile([
+      "FROM node:16-alpine as build",
+      "WORKDIR /usr/src/app",
+      "RUN npm install -g @angular/cli",
+      "COPY package.json package.json",
+      "RUN npm install --silent --force",
+      "COPY . .",
+      "RUN npm run build",
+    ].join("\n") + "\n");
+
+    const [analysis] = analyzeDockerfile(TMP, "node");
+    expect(analysis!.proposedContent).not.toBeNull();
+    applyDockerfileFix(analysis!);
+
+    const written = readFileSync(join(TMP, "Dockerfile"), "utf-8");
+    expect(written).toContain("pnpm install");
+    expect(written).not.toContain("npm install --silent --force");
+    expect(written).toContain("npm install -g @angular/cli");
+  });
+
   it("no hace nada si proposedContent es null", () => {
     writePkg({ packageManager: "pnpm@10.25.0" });
     const original = [
       "FROM node:20",
       "RUN npm install -g pnpm@10.25.0",
       "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "ENV CI=true",
       "RUN pnpm install --frozen-lockfile --ignore-scripts",
     ].join("\n") + "\n";
     writeDockerfile(original);

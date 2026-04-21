@@ -102,7 +102,9 @@ export async function runAllChecks(opts: RunOptions) {
 
   const results = await runChecks(opts.projectPath, project.type);
 
-  printReport(results);
+  if (!opts.fix) {
+    printReport(results);
+  }
 
   if (opts.fix) {
     await applyFixes(results, opts.projectPath);
