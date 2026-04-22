@@ -28,6 +28,7 @@ import { checkPypiSource }    from "../src/checks/python/check-pypi-source";
 import { checkSecrets }      from "../src/checks/check-secrets";
 import { checkGitignore }    from "../src/checks/check-gitignore";
 import { checkNodeVersion }  from "../src/checks/check-node-version";
+import { checkScripts }      from "../src/checks/check-scripts";
 
 import {
   applyGitignore,
@@ -40,6 +41,7 @@ import {
   applyPoetryToml,
   applyPythonVersion,
   applyPypiSource,
+  applyLocksmithScripts,
 } from "../src/fixer/apply";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -1889,5 +1891,111 @@ describe("applyDockerfileFix", () => {
 
     const written = readFileSync(join(TMP, "Dockerfile"), "utf-8");
     expect(written).toBe(original);
+  });
+});
+
+// ─── checkScripts ────────────────────────────────────────────────────────────
+
+describe("checkScripts", () => {
+  it("ok cuando scripts de locksmith y frozen-lockfile ya existen", async () => {
+    writePkg({
+      scripts: {
+        "security": "locksmith .",
+        "install:ci": "pnpm install --frozen-lockfile --ignore-scripts",
+      },
+    });
+    const r = await checkScripts(TMP);
+    expect(r.status).toBe("ok");
+  });
+
+  it("warn cuando faltan ambos scripts", async () => {
+    writePkg({ scripts: { "build": "tsc" } });
+    const r = await checkScripts(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.fixable).toBe(true);
+    expect(r.message).toContain("locksmith");
+    expect(r.message).toContain("--frozen-lockfile");
+  });
+
+  it("warn cuando falta solo locksmith", async () => {
+    writePkg({
+      scripts: { "install:ci": "pnpm install --frozen-lockfile" },
+    });
+    const r = await checkScripts(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain("locksmith");
+    expect(r.message).not.toContain("--frozen-lockfile");
+  });
+
+  it("warn cuando falta solo frozen-lockfile", async () => {
+    writePkg({
+      scripts: { "security": "locksmith . --strict" },
+    });
+    const r = await checkScripts(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain("--frozen-lockfile");
+    expect(r.message).not.toContain("locksmith (auditoría");
+  });
+
+  it("warn sin package.json", async () => {
+    const r = await checkScripts(TMP);
+    expect(r.status).toBe("warn");
+    expect(r.message).toContain("package.json no encontrado");
+  });
+});
+
+// ─── applyLocksmithScripts ───────────────────────────────────────────────────
+
+describe("applyLocksmithScripts", () => {
+  it("agrega todos los scripts y comentarios cuando no existen", async () => {
+    writePkg({ scripts: { "build": "tsc" } });
+    await applyLocksmithScripts(TMP);
+
+    const pkg = JSON.parse(readFileSync(join(TMP, "package.json"), "utf-8"));
+    expect(pkg.scripts["security"]).toBe("locksmith .");
+    expect(pkg.scripts["security:fix"]).toBe("locksmith . --fix");
+    expect(pkg.scripts["security:ci"]).toBe("locksmith . --strict");
+    expect(pkg.scripts["install:ci"]).toContain("--frozen-lockfile");
+    expect(pkg.scripts["install:ci"]).toContain("--ignore-scripts");
+    expect(pkg.scripts["//security"]).toBeDefined();
+    expect(pkg.scripts["//install:ci"]).toBeDefined();
+  });
+
+  it("no duplica locksmith si ya existe security con locksmith", async () => {
+    writePkg({ scripts: { "security": "locksmith ." } });
+    await applyLocksmithScripts(TMP);
+
+    const pkg = JSON.parse(readFileSync(join(TMP, "package.json"), "utf-8"));
+    expect(pkg.scripts["//security"]).toBeUndefined();
+    expect(pkg.scripts["install:ci"]).toContain("--frozen-lockfile");
+  });
+
+  it("no duplica frozen-lockfile si ya existe", async () => {
+    writePkg({ scripts: { "ci": "pnpm install --frozen-lockfile" } });
+    await applyLocksmithScripts(TMP);
+
+    const pkg = JSON.parse(readFileSync(join(TMP, "package.json"), "utf-8"));
+    expect(pkg.scripts["//install:ci"]).toBeUndefined();
+    expect(pkg.scripts["security"]).toBe("locksmith .");
+  });
+
+  it("preserva scripts existentes", async () => {
+    writePkg({ scripts: { "build": "tsc", "test": "bun test" } });
+    await applyLocksmithScripts(TMP);
+
+    const pkg = JSON.parse(readFileSync(join(TMP, "package.json"), "utf-8"));
+    expect(pkg.scripts["build"]).toBe("tsc");
+    expect(pkg.scripts["test"]).toBe("bun test");
+  });
+
+  it("fix() en checkScripts pasa el check al re-ejecutar", async () => {
+    writePkg({ scripts: {} });
+    const before = await checkScripts(TMP);
+    expect(before.status).toBe("warn");
+
+    await before.fix!();
+
+    const after = await checkScripts(TMP);
+    expect(after.status).toBe("ok");
   });
 });

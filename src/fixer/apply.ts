@@ -135,6 +135,31 @@ export async function applyPypiSource(projectPath: string) {
 
 // ─── Node fixers ──────────────────────────────────────────────────────────────
 
+export async function applyLocksmithScripts(projectPath: string) {
+  const pkgPath = join(projectPath, "package.json");
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+
+  const existing: Record<string, string> = pkg.scripts ?? {};
+
+  const hasLocksmith = Object.values(existing).some((v) => v.includes("locksmith"));
+  const hasFrozen    = Object.values(existing).some((v) => v.includes("--frozen-lockfile"));
+
+  const toAdd: Record<string, string> = {};
+
+  if (!hasLocksmith) {
+    toAdd["security"]       = "locksmith .";
+    toAdd["security:fix"]   = "locksmith . --fix";
+    toAdd["security:ci"]    = "locksmith . --strict";
+  }
+
+  if (!hasFrozen) {
+    toAdd["install:ci"]   = "pnpm install --frozen-lockfile --ignore-scripts";
+  }
+
+  pkg.scripts = { ...existing, ...toAdd };
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+}
+
 export async function applyPackageManager(projectPath: string) {
   const { $ } = await import("bun");
   const version = (await $`pnpm --version`.text()).trim();

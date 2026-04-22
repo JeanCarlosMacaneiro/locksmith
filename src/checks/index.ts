@@ -23,6 +23,7 @@ import { checkBuiltDeps }      from "./check-built-deps";
 import { checkOnlyAllow }      from "./check-only-allow";
 import { checkPackageManager } from "./check-package-manager";
 import { checkNodeVersion }    from "./check-node-version";
+import { checkScripts }        from "./check-scripts";
 
 // ── Python checks ─────────────────────────────────────────────────────────────
 import { checkPoetry }         from "./python/check-poetry";
@@ -63,6 +64,7 @@ async function runChecks(projectPath: string, type: string) {
     checkAudit(projectPath),
     checkGitignore(projectPath),
     checkSecrets(projectPath),
+    checkScripts(projectPath),
   ]);
 }
 
