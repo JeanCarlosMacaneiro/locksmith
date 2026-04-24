@@ -35,7 +35,7 @@ import { checkDepGroups }      from "./python/check-dep-groups";
 import { checkPythonVersion }  from "./python/check-python-version";
 import { checkPypiSource }     from "./python/check-pypi-source";
 
-async function runChecks(projectPath: string, type: string) {
+export async function runChecks(projectPath: string, type: string) {
   if (type === "python") {
     return Promise.all([
       checkPoetry(projectPath),

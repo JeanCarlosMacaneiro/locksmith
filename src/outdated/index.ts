@@ -2,7 +2,7 @@ import { $ } from "bun";
 import { buildOutdatedPackage, readRenovatePolicy } from "./classify";
 import { fetchNpmPublishDate, fetchPypiPublishDate } from "./fetch-dates";
 import { printOutdatedReport, printNoOutdated } from "./reporter";
-import type { OutdatedPackage } from "../types";
+import type { OutdatedPackage, RenovatePolicy } from "../types";
 
 // ─── raw package list per ecosystem ──────────────────────────────────────────
 
@@ -75,6 +75,34 @@ async function applySafeUpdates(
       await $`poetry update ${name} --no-interaction`.cwd(projectPath);
     }
   }
+}
+
+// ─── pure data extraction (no printing, no side effects) ─────────────────────
+
+export async function runOutdatedCheck(
+  projectPath: string,
+  projectType: string
+): Promise<{ packages: OutdatedPackage[]; policy: RenovatePolicy }> {
+  const isNode = projectType !== "python";
+  const policy = readRenovatePolicy(projectPath);
+
+  const rawPackages = isNode
+    ? await getNodeOutdated(projectPath)
+    : await getPythonOutdated(projectPath);
+
+  if (rawPackages.length === 0) {
+    return { packages: [], policy };
+  }
+
+  const fetchDate = isNode ? fetchNpmPublishDate : fetchPypiPublishDate;
+  const packages = await Promise.all(
+    rawPackages.map(async (p) => {
+      const date = await fetchDate(p.name, p.latest);
+      return buildOutdatedPackage(p.name, p.current, p.latest, date, policy);
+    })
+  );
+
+  return { packages, policy };
 }
 
 // ─── main entry point ─────────────────────────────────────────────────────────

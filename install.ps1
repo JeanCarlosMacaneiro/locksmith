@@ -17,7 +17,7 @@ Write-Host "  Verificando requisitos e instalando..." -ForegroundColor DarkGray
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # ─── step 1: bun ─────────────────────────────────────────────────────────────
-step "1/4  Verificando Bun"
+step "1/5  Verificando Bun"
 
 if (Get-Command bun -ErrorAction SilentlyContinue) {
     $bunVersion = bun --version
@@ -40,7 +40,7 @@ if (Get-Command bun -ErrorAction SilentlyContinue) {
 }
 
 # ─── step 2: pnpm ────────────────────────────────────────────────────────────
-step "2/4  Verificando pnpm"
+step "2/5  Verificando pnpm"
 
 if (Get-Command pnpm -ErrorAction SilentlyContinue) {
     $pnpmVersion = pnpm --version
@@ -63,7 +63,7 @@ if (Get-Command pnpm -ErrorAction SilentlyContinue) {
 }
 
 # ─── step 3: dependencias ────────────────────────────────────────────────────
-step "3/4  Instalando dependencias"
+step "3/5  Instalando dependencias"
 
 Set-Location $SCRIPT_DIR
 
@@ -77,7 +77,7 @@ if ($env:CI) {
 ok "Dependencias instaladas"
 
 # ─── step 4: crear wrapper ───────────────────────────────────────────────────
-step "4/4  Registrando comando locksmith"
+step "4/5  Registrando comando locksmith"
 
 $BUN_BIN_DIR = "$env:USERPROFILE\.bun\bin"
 $CLI_PATH    = Join-Path $SCRIPT_DIR "bin\cli.ts"
@@ -92,7 +92,47 @@ Set-Content -Path $WRAPPER -Value "@echo off`nbun `"$CLI_PATH`" %*"
 
 ok "Wrapper creado: $WRAPPER"
 
-# ─── step 5: PATH ────────────────────────────────────────────────────────────
+# ─── step 5: MCP Server ──────────────────────────────────────────────────────
+step "5/5  Registrando MCP Server en Claude Desktop"
+
+$MCP_ENTRY = Join-Path $SCRIPT_DIR "bin\mcp.ts"
+$CLAUDE_CONFIG_DIR = Join-Path $env:APPDATA "Claude"
+$CLAUDE_CONFIG = Join-Path $CLAUDE_CONFIG_DIR "claude_desktop_config.json"
+
+if (-not (Test-Path $CLAUDE_CONFIG_DIR)) {
+    New-Item -ItemType Directory -Path $CLAUDE_CONFIG_DIR | Out-Null
+}
+
+if (-not (Test-Path $CLAUDE_CONFIG)) {
+    Set-Content -Path $CLAUDE_CONFIG -Value '{"mcpServers":{}}'
+}
+
+# Validate JSON — backup and recreate if malformed
+try {
+    $null = Get-Content $CLAUDE_CONFIG -Raw | ConvertFrom-Json
+} catch {
+    warn "JSON malformado en $CLAUDE_CONFIG — creando backup..."
+    Copy-Item $CLAUDE_CONFIG "${CLAUDE_CONFIG}.bak"
+    Set-Content -Path $CLAUDE_CONFIG -Value '{"mcpServers":{}}'
+    ok "Backup guardado en ${CLAUDE_CONFIG}.bak"
+}
+
+# Update config: set mcpServers.locksmith entry
+$config = Get-Content $CLAUDE_CONFIG -Raw | ConvertFrom-Json
+if (-not $config.mcpServers) {
+    $config | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{}
+}
+$locksmithEntry = [PSCustomObject]@{
+    command = "bun"
+    args    = @($MCP_ENTRY)
+}
+$config.mcpServers | Add-Member -MemberType NoteProperty -Name "locksmith" -Value $locksmithEntry -Force
+$config | ConvertTo-Json -Depth 10 | Set-Content $CLAUDE_CONFIG
+
+ok "MCP Server registrado en $CLAUDE_CONFIG"
+info "Reinicia Claude Desktop para activar el servidor MCP locksmith"
+
+# ─── PATH ─────────────────────────────────────────────────────────────────────
 $NEEDS_RELOAD = $false
 
 if ($env:PATH -split ";" | Where-Object { $_ -eq $BUN_BIN_DIR }) {
