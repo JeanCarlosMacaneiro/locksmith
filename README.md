@@ -1,10 +1,6 @@
 # locksmith
 
-A CLI tool that audits and enforces security policies across **Node.js / Bun** and **Python** projects. Protects against supply chain attacks, infected packages, and insecure dependency configurations.
-
-Automatically detects the project language and runs all checks in parallel — no configuration needed.
-
-**→ Checks:** [Node.js / Bun](docs/checks-node.md) · [Python / Poetry](docs/checks-python.md) · [Outdated packages](docs/outdated.md) · [Development](docs/development.md)
+CLI that audits and enforces security policies for **Node.js / Bun** and **Python** projects. Detects the language automatically and runs all checks in parallel — no configuration needed.
 
 ---
 
@@ -43,33 +39,77 @@ bun run ./bin/cli.ts [path] [options]
 
 ---
 
-## Usage
+## Commands
 
-```bash
-locksmith [path] [options]
-```
+| Command | What it does | Docs |
+|---|---|---|
+| `locksmith [path]` | Run all security checks (Node.js or Python, auto-detected) | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
+| `locksmith --fix` | Apply all available auto-fixes, then prompt to update Dockerfile | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
+| `locksmith --fix-dockerfile` | Analyze and fix Dockerfile only — skips security checks | [Dockerfile](docs/dockerfile.md) |
+| `locksmith --outdated` | Show outdated packages against Renovate policy delays | [Outdated packages](docs/outdated.md) |
+| `locksmith --outdated --fix` | Auto-apply safe patch updates that meet the policy age | [Outdated packages](docs/outdated.md) |
+| `locksmith --report json\|markdown` | Export results to a file | — |
+| `locksmith --strict` | Exit `1` on warnings too (CI mode) | — |
+| `locksmith add <pkg>[@version]` | Inspect package security before installing via pnpm | [Safe add/update](docs/safe-add.md) |
+| `locksmith update <pkg>[@version]` | Inspect package security before updating via pnpm | [Safe add/update](docs/safe-add.md) |
+
+### Options for `add` / `update`
 
 | Option | Description |
 |---|---|
-| `[path]` | Path to the project to analyze (default: current directory) |
-| `--fix` | Automatically apply available corrections |
-| `--fix-dockerfile` | Analyze and fix Dockerfile for the project (Node.js and Python) |
-| `--outdated` | Check for outdated packages against Renovate policy delays |
-| `--report json\|markdown` | Export results to a file |
-| `--strict` | Exit with code `1` on warnings (not only errors) |
+| `--force` | Skip confirmation on medium risk (never bypasses critical/malware) |
+| `--dry-run` | Run all security checks and show report without installing |
+
+### Quick reference
 
 ```bash
-locksmith                        # Run security checks + Dockerfile warnings
-locksmith --fix                  # Auto-fix all fixable issues + prompt Dockerfile update
-locksmith --fix-dockerfile       # Only analyze and fix Dockerfile (skips security checks)
-locksmith --outdated             # Show outdated packages
-locksmith --outdated --fix       # Apply safe patch updates
-locksmith --strict               # Block on warnings too
+locksmith                            # security checks + Dockerfile warnings
+locksmith --fix                      # auto-fix all issues + prompt Dockerfile update
+locksmith --fix-dockerfile           # fix Dockerfile only
+locksmith --outdated                 # show outdated packages with policy status
+locksmith --outdated --fix           # auto-apply safe patches
+locksmith --strict                   # block on warnings (CI mode)
+locksmith . --report json            # export results as JSON
+
+locksmith add express                # inspect latest, then install
+locksmith add lodash@4.17.21        # inspect specific version, then install
+locksmith add express --dry-run      # security report only, no install
+locksmith add express --force        # skip medium-risk confirmation
+locksmith update react               # inspect new version before updating
 ```
 
 ---
 
-## Output
+## What gets checked
+
+### Node.js / Bun (12 checks)
+pnpm version · `.npmrc` security rules · lockfile present · Renovate policy · `onlyBuiltDependencies` · `only-allow pnpm` · `packageManager` field · Node version pinned · `pnpm audit` · `.gitignore` patterns · secrets scan · security scripts
+
+→ Full details: [docs/checks-node.md](docs/checks-node.md)
+
+### Python / Poetry (11 checks)
+Poetry installed · `pyproject.toml` present · `poetry.lock` present · Python version pinned · virtual env in-project · no `requirements.txt` · `pip audit` · `.gitignore` patterns · secrets scan · source pinned · dependency groups
+
+→ Full details: [docs/checks-python.md](docs/checks-python.md)
+
+### Dockerfile (multi-stage aware)
+Base image version pinned · pnpm/corepack version pinned · `--frozen-lockfile` / `--ignore-scripts` flags · `.npmrc` copied before install · `pip install` replaced with `poetry install` · `--no-cache-dir` flag · config files copied
+
+→ Full details: [docs/dockerfile.md](docs/dockerfile.md)
+
+### Outdated packages
+Compares installed versions against npm/PyPI registry, respects `renovate.json` `minimumReleaseAge` delays, auto-fixes safe patches only.
+
+→ Full details: [docs/outdated.md](docs/outdated.md)
+
+### Safe add / update
+Two-layer check before install: lifecycle script inspection (always) + Socket.dev supply chain score (opt-in via `SOCKET_SECURITY_API_TOKEN`). Critical risk (malware) blocks unconditionally.
+
+→ Full details: [docs/safe-add.md](docs/safe-add.md)
+
+---
+
+## Sample output
 
 ```
 🔐 locksmith
@@ -92,37 +132,11 @@ locksmith --strict               # Block on warnings too
   ✓ pnpm audit             OK       Sin vulnerabilidades conocidas
   ✓ .gitignore             OK       Patrones de seguridad presentes
   ✓ secrets scan           OK       Sin secrets detectados en el código fuente
+  ✓ scripts policy         OK       Scripts de seguridad presentes
 ─────────────────────────────────────────────────────────────────────────
 
-  11 ok
+  12 ok
 ```
-
-Results can be exported with `--report json` or `--report markdown`.
-
-### Dockerfile analysis
-
-When a `Dockerfile` is found, locksmith automatically analyzes it for security issues:
-
-```
-🐳 Dockerfile: Dockerfile
-
-  Problemas encontrados:
-  ⚠  L12  pin-version   pnpm no pinned — versión puede diferir en producción
-  ⚠  L18  missing-flag  pnpm install sin --frozen-lockfile, --ignore-scripts
-  ⚠  L15  missing-copy  .npmrc no copiado antes de pnpm install
-
-  → ejecuta locksmith --fix-dockerfile para corregir
-```
-
-| Mode | Behavior |
-|---|---|
-| `locksmith` | Shows Dockerfile warnings inline, no changes |
-| `locksmith --fix` | After fixing security issues, prompts to update Dockerfile |
-| `locksmith --fix-dockerfile` | Only analyzes Dockerfile, prompts to apply fixes |
-
-**Node.js checks:** pnpm version pinned, `--frozen-lockfile`, `--ignore-scripts`, `.npmrc` copied before install, `corepack prepare` version.
-
-**Python checks:** `--no-interaction`, `--no-root` on `poetry install`, `.python-version` and `poetry.toml` copied before install, `--no-cache-dir` on `pip install`.
 
 ---
 
@@ -132,7 +146,7 @@ When a `Dockerfile` is found, locksmith automatically analyzes it for security i
 locksmith . --strict
 ```
 
-Exits with code `1` on any warning or error — blocks the merge.
+Exits `1` on any warning or error — blocks the merge.
 
 ```yaml
 # GitHub Actions
@@ -150,10 +164,6 @@ jobs:
 
 ---
 
-## Documentation
+## Development
 
-- [docs/checks-node.md](docs/checks-node.md) — Node.js / Bun: 11 checks with details and examples
-- [docs/checks-python.md](docs/checks-python.md) — Python / Poetry: 11 checks with details and examples
-- [docs/outdated.md](docs/outdated.md) — `--outdated`: safety rules, Renovate policy, output reference
-- [docs/development.md](docs/development.md) — Project structure, dev setup, how to add a check
-- [docs/dockerfile.md](docs/dockerfile.md) — `--fix-dockerfile`: what is checked, Node.js and Python patterns
+→ [docs/development.md](docs/development.md)

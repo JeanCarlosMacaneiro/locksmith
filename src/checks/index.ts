@@ -71,11 +71,12 @@ async function runChecks(projectPath: string, type: string) {
 async function runDockerfileFlow(
   projectPath: string,
   projectType: string,
-  mode: "check" | "fix"
+  mode: "check" | "fix",
+  autoFix = false,
 ): Promise<void> {
   const analyses = analyzeDockerfile(projectPath, projectType);
   if (mode === "fix") {
-    await promptDockerFix(analyses, projectPath);
+    await promptDockerFix(analyses, projectPath, autoFix);
   } else {
     await showDockerWarnings(analyses, projectPath);
   }
@@ -96,9 +97,9 @@ export async function runAllChecks(opts: RunOptions) {
     pc.green(`✓ Proyecto: ${pc.bold(project.name)} [${project.type}]\n`)
   );
 
-  // --fix-dockerfile only: skip security checks, just analyze Docker
+  // --fix-dockerfile only: skip security checks, apply Docker fixes directly
   if (opts.fixDockerfile && !opts.fix) {
-    await runDockerfileFlow(opts.projectPath, project.type, "fix");
+    await runDockerfileFlow(opts.projectPath, project.type, "fix", true);
     process.exit(0);
   }
 
@@ -131,7 +132,7 @@ export async function runAllChecks(opts: RunOptions) {
       await runOutdated(opts.projectPath, project.type, true);
     }
 
-    await runDockerfileFlow(opts.projectPath, project.type, "fix");
+    await runDockerfileFlow(opts.projectPath, project.type, "fix", false);
 
     const hasErrors   = reResults.some((r) => r.status === "error");
     const hasWarnings = reResults.some((r) => r.status === "warn");

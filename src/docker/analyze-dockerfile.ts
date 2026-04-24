@@ -242,6 +242,47 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
       !/\bnpm\s+(?:install|i)\s+(?:-g\s+)?pnpm/.test(trimmed) &&
       !/\bnpm\s+(?:install|i)\s+-g\b/.test(trimmed)
     ) {
+      // Same prerequisite checks as the native pnpm install block
+      if (!pnpmInstalled) {
+        issues.push({
+          line: lineNum,
+          kind: "missing-cmd",
+          description: "pnpm no instalado en este stage — falta corepack enable o npm install -g pnpm@X",
+          original: trimmed,
+          replacement: "RUN corepack enable",
+        });
+        pnpmInstalled = true;
+      }
+      if (!npmrcCopied) {
+        issues.push({
+          line: lineNum,
+          kind: "missing-copy",
+          description: ".npmrc no copiado antes de pnpm install — reglas de seguridad no aplican en build",
+          original: trimmed,
+          replacement: "COPY .npmrc .",
+        });
+        npmrcCopied = true;
+      }
+      if (!lockfileCopied) {
+        issues.push({
+          line: lineNum,
+          kind: "missing-copy",
+          description: "pnpm-lock.yaml no copiado — pnpm install --frozen-lockfile falla sin lockfile",
+          original: trimmed,
+          replacement: "COPY pnpm-lock.yaml .",
+        });
+        lockfileCopied = true;
+      }
+      if (!ciEnvSet) {
+        issues.push({
+          line: lineNum,
+          kind: "missing-cmd",
+          description: "ENV CI=true faltante — pnpm falla sin TTY en CI/Docker (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)",
+          original: trimmed,
+          replacement: "ENV CI=true",
+        });
+        ciEnvSet = true;
+      }
       issues.push({
         line: lineNum,
         kind: "missing-flag",

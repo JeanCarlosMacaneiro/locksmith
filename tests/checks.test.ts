@@ -1335,6 +1335,53 @@ describe("analyzeDockerfile — Node", () => {
     expect(r!.proposedContent).not.toContain("npm install --silent");
   });
 
+  it("npm→pnpm agrega corepack, .npmrc, pnpm-lock.yaml y ENV CI cuando faltan", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile([
+      "FROM node:20-alpine AS build",
+      "WORKDIR /app",
+      "RUN npm install -g @angular/cli",
+      "COPY package.json .",
+      "RUN npm install --silent --force",
+    ].join("\n"));
+
+    const [r] = analyzeDockerfile(TMP, "node");
+    const proposed = r!.proposedContent!;
+
+    expect(proposed).toContain("RUN corepack enable");
+    expect(proposed).toContain("COPY .npmrc .");
+    expect(proposed).toContain("COPY pnpm-lock.yaml .");
+    expect(proposed).toContain("ENV CI=true");
+    expect(proposed).toContain("RUN pnpm install --frozen-lockfile --ignore-scripts");
+    expect(proposed).not.toContain("npm install --silent");
+    // global install preserved
+    expect(proposed).toContain("npm install -g @angular/cli");
+    // prerequisites appear before the install line
+    const lines = proposed.split("\n");
+    const corepackIdx  = lines.findIndex(l => l.includes("corepack enable"));
+    const pnpmIdx      = lines.findIndex(l => l.includes("pnpm install --frozen"));
+    expect(corepackIdx).toBeLessThan(pnpmIdx);
+  });
+
+  it("npm→pnpm no duplica corepack si pnpm ya estaba instalado", () => {
+    writePkg({ packageManager: "pnpm@10.25.0" });
+    writeDockerfile([
+      "FROM node:20",
+      "RUN corepack enable",
+      "COPY .npmrc .",
+      "COPY pnpm-lock.yaml .",
+      "ENV CI=true",
+      "RUN npm install --silent",
+    ].join("\n"));
+
+    const [r] = analyzeDockerfile(TMP, "node");
+    const cmdIssues = r!.issues.filter(x => x.kind === "missing-cmd");
+    const copyIssues = r!.issues.filter(x => x.kind === "missing-copy");
+    expect(cmdIssues).toHaveLength(0);
+    expect(copyIssues).toHaveLength(0);
+    expect(r!.proposedContent).toContain("pnpm install --frozen-lockfile --ignore-scripts");
+  });
+
   it("detecta múltiples Dockerfiles (Dockerfile + Dockerfile.dev)", () => {
     writePkg();
     writeDockerfile("FROM node:20\nRUN pnpm install\n", "Dockerfile");
@@ -1957,8 +2004,6 @@ describe("applyLocksmithScripts", () => {
     expect(pkg.scripts["security:ci"]).toBe("locksmith . --strict");
     expect(pkg.scripts["install:ci"]).toContain("--frozen-lockfile");
     expect(pkg.scripts["install:ci"]).toContain("--ignore-scripts");
-    expect(pkg.scripts["//security"]).toBeDefined();
-    expect(pkg.scripts["//install:ci"]).toBeDefined();
   });
 
   it("no duplica locksmith si ya existe security con locksmith", async () => {

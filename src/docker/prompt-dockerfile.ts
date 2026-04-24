@@ -8,6 +8,8 @@ const KIND_LABEL: Record<DockerIssue["kind"], string> = {
   "pin-version":  "pin-version ",
   "missing-flag": "missing-flag",
   "missing-copy": "missing-copy",
+  "missing-cmd":  "missing-cmd ",
+  "update-from":  "update-from ",
   "advisory":     "advisory    ",
 };
 
@@ -74,7 +76,8 @@ export async function showDockerWarnings(
 
 export async function promptDockerFix(
   analyses: DockerfileAnalysis[],
-  projectPath: string
+  projectPath: string,
+  autoFix = false,
 ): Promise<void> {
   const found = analyses.filter(a => a.found);
 
@@ -89,12 +92,19 @@ export async function promptDockerFix(
     const fixable = analysis.issues.filter(x => x.replacement !== null);
     if (fixable.length === 0) continue;
 
+    const relPath = relative(projectPath, analysis.dockerfilePath!);
+
+    if (autoFix) {
+      applyDockerfileFix(analysis);
+      console.log(pc.green(`  ✓ ${relPath} actualizado\n`));
+      continue;
+    }
+
     if (!process.stdin.isTTY) {
       console.log(pc.dim("  (modo no-interactivo — ejecuta locksmith --fix-dockerfile en terminal)\n"));
       continue;
     }
 
-    const relPath   = relative(projectPath, analysis.dockerfilePath!);
     const confirmed = await askConfirmation(
       pc.bold(`  ¿Actualizar ${relPath}? `) + pc.dim("[y/N] ")
     );

@@ -46,6 +46,51 @@ export interface DockerfileAnalysis {
   proposedContent: string | null;
 }
 
+// ─── safe-add ────────────────────────────────────────────────────────────────
+
+export interface DangerousScript {
+  scriptName: string;
+  value: string;
+  patterns: string[];
+}
+
+export interface SocketAlert {
+  severity: "critical" | "high" | "middle" | "low";
+  type: string;
+}
+
+export interface SocketScore {
+  supplyChainRisk: number;
+  alerts: SocketAlert[];
+}
+
+export interface PackageSecurityInfo {
+  name: string;
+  resolvedVersion: string;
+  lifecycleScripts: Record<string, string>;
+  dangerousScripts: DangerousScript[];
+  socketScore?: SocketScore;
+  riskLevel: "none" | "medium" | "critical";
+}
+
+export interface AddOptions {
+  projectPath: string;
+  package: string;
+  version?: string;
+  force: boolean;
+  dryRun: boolean;
+}
+
+export class RegistryError extends Error {
+  constructor(
+    message: string,
+    public readonly code: "not_found" | "timeout" | "network"
+  ) {
+    super(message);
+    this.name = "RegistryError";
+  }
+}
+
 // ─── outdated ────────────────────────────────────────────────────────────────
 
 export type UpdateType = "patch" | "minor" | "major";

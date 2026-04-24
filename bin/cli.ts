@@ -2,6 +2,7 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { runAllChecks } from "../src/checks/index";
+import { runSafeAdd, runSafeUpdate } from "../src/add/index";
 import type { RunOptions } from "../src/types";
 
 yargs(hideBin(process.argv))
@@ -52,6 +53,44 @@ yargs(hideBin(process.argv))
         outdated:      argv.outdated,
       };
       await runAllChecks(opts);
+    }
+  )
+  .command(
+    "add <package>",
+    "Verifica seguridad e instala un paquete con pnpm",
+    (y) =>
+      y
+        .positional("package", { type: "string", demandOption: true })
+        .option("force", { type: "boolean", default: false, description: "Omite confirmación en riesgo medio" })
+        .option("dry-run", { type: "boolean", default: false, description: "Analiza sin instalar" }),
+    async (argv) => {
+      const [pkg, version] = (argv.package as string).split("@");
+      await runSafeAdd({
+        projectPath: process.cwd(),
+        package: pkg!,
+        version,
+        force: argv.force as boolean,
+        dryRun: argv["dry-run"] as boolean,
+      });
+    }
+  )
+  .command(
+    "update <package>",
+    "Verifica seguridad y actualiza un paquete con pnpm",
+    (y) =>
+      y
+        .positional("package", { type: "string", demandOption: true })
+        .option("force", { type: "boolean", default: false, description: "Omite confirmación en riesgo medio" })
+        .option("dry-run", { type: "boolean", default: false, description: "Analiza sin actualizar" }),
+    async (argv) => {
+      const [pkg, version] = (argv.package as string).split("@");
+      await runSafeUpdate({
+        projectPath: process.cwd(),
+        package: pkg!,
+        version,
+        force: argv.force as boolean,
+        dryRun: argv["dry-run"] as boolean,
+      });
     }
   )
   .help()

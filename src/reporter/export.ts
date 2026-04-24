@@ -3,22 +3,49 @@ import { join } from "path";
 import pc from "picocolors";
 import type { CheckResult } from "../types";
 
+interface JsonCheck {
+  name: string;
+  status: "ok" | "warn" | "error";
+  message: string;
+  fixable: boolean;
+  wasFixed: boolean;
+}
+
+function toJsonCheck(r: CheckResult): JsonCheck {
+  return {
+    name:     r.name,
+    status:   r.status,
+    message:  r.message,
+    fixable:  r.fixable  ?? false,
+    wasFixed: r.wasFixed ?? false,
+  };
+}
+
 export async function exportReport(
   results: CheckResult[],
   format: "json" | "markdown",
   projectPath: string
-) {
+): Promise<void> {
+  const fixed    = results.filter(r => r.wasFixed);
+  const errors   = results.filter(r => r.status === "error" && !r.wasFixed);
+  const warnings = results.filter(r => r.status === "warn"  && !r.wasFixed);
+  const oks      = results.filter(r => r.status === "ok"    && !r.wasFixed);
+  const allOk    = [...oks, ...fixed];
+
   if (format === "json") {
     const out = {
       timestamp: new Date().toISOString(),
       summary: {
-        ok:    results.filter((r) => r.status === "ok").length,
-        warn:  results.filter((r) => r.status === "warn").length,
-        error: results.filter((r) => r.status === "error").length,
+        ok:    allOk.length,
+        warn:  warnings.length,
+        error: errors.length,
       },
-      checks: results.map(({ name, status, message, fixable }) => ({
-        name, status, message, fixable: fixable ?? false,
-      })),
+      sections: {
+        errors:   errors.map(toJsonCheck),
+        warnings: warnings.map(toJsonCheck),
+        ok:       allOk.map(toJsonCheck),
+      },
+      checks: results.map(toJsonCheck),
     };
     const path = join(projectPath, "security-report.json");
     writeFileSync(path, JSON.stringify(out, null, 2));
@@ -27,17 +54,25 @@ export async function exportReport(
 
   if (format === "markdown") {
     const icon: Record<string, string> = { ok: "✅", warn: "⚠️", error: "❌" };
-    const rows = results
-      .map((r) => `| ${icon[r.status]} | ${r.name} | ${r.message} |`)
-      .join("\n");
+    let md = `# Security Report\n> Generado: ${new Date().toISOString()}\n`;
 
-    const md = `# Security Report
-> Generado: ${new Date().toISOString()}
+    if (errors.length > 0) {
+      const rows = errors.map(r => `| ${icon.error} | ${r.name} | ${r.message} |`).join("\n");
+      md += `\n## Errores\n| Estado | Check | Detalle |\n|--------|-------|------|\n${rows}\n`;
+    }
 
-| Estado | Check | Detalle |
-|--------|-------|---------|
-${rows}
-`;
+    if (warnings.length > 0) {
+      const rows = warnings.map(r => `| ${icon.warn} | ${r.name} | ${r.message} |`).join("\n");
+      md += `\n## Advertencias\n| Estado | Check | Detalle |\n|--------|-------|------|\n${rows}\n`;
+    }
+
+    if (allOk.length > 0) {
+      const rows = allOk.map(r =>
+        `| ${icon.ok} | ${r.name}${r.wasFixed ? " [fixed]" : ""} | ${r.message} |`
+      ).join("\n");
+      md += `\n## OK\n| Estado | Check | Detalle |\n|--------|-------|------|\n${rows}\n`;
+    }
+
     const path = join(projectPath, "security-report.md");
     writeFileSync(path, md);
     console.log(pc.green(`✓ Reporte Markdown exportado → ${path}`));

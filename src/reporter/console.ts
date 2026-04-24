@@ -1,66 +1,79 @@
 import pc from "picocolors";
 import type { CheckResult } from "../types";
 
-const ICON: Record<CheckResult["status"], string> = {
-  ok:    "✓",
-  warn:  "⚠",
-  error: "✗",
-};
+export function printReport(results: CheckResult[]): void {
+  const fixed    = results.filter(r => r.wasFixed);
+  const errors   = results.filter(r => r.status === "error" && !r.wasFixed);
+  const warnings = results.filter(r => r.status === "warn"  && !r.wasFixed);
+  const oks      = results.filter(r => r.status === "ok"    && !r.wasFixed);
+  const allOk    = [...oks, ...fixed];
 
-const COLOR: Record<CheckResult["status"], (s: string) => string> = {
-  ok:    pc.green,
-  warn:  pc.yellow,
-  error: pc.red,
-};
+  printExecutiveSummary(errors.length, warnings.length, allOk.length);
 
-export function printReport(results: CheckResult[]) {
-  const nameW = Math.max(...results.map((r) => r.name.length), 20) + 2;
-  const sep = "─".repeat(nameW + 50);
+  if (errors.length > 0)   printSection("ACCIÓN REQUERIDA", errors, "error");
+  if (warnings.length > 0) printSection("ADVERTENCIAS", warnings, "warn");
+  if (allOk.length > 0)    printCollapsedOk(allOk);
+}
 
-  console.log(pc.dim(sep));
-  console.log(
-    pc.bold(pc.dim("  " + "Check".padEnd(nameW) + "Estado   " + "Detalle"))
-  );
-  console.log(pc.dim(sep));
+function printExecutiveSummary(errors: number, warns: number, oks: number): void {
+  const parts: string[] = [];
+  if (errors > 0) parts.push(pc.red(`${errors} ${errors === 1 ? "error" : "errores"}`));
+  if (warns  > 0) parts.push(pc.yellow(`${warns} ${warns === 1 ? "advertencia" : "advertencias"}`));
+  parts.push(pc.green(`${oks} ok`));
+  console.log(`\n  ${parts.join(pc.dim(" · "))}\n`);
+}
 
-  for (const r of results) {
-    const icon = COLOR[r.status](ICON[r.status]);
-    const status = COLOR[r.status](r.status.toUpperCase().padEnd(8));
-    const badge = r.wasFixed
-      ? pc.bold(pc.green(" [fixed]"))
-      : r.fixable
-        ? pc.dim(" [--fix]")
-        : "";
-    console.log(`  ${icon} ${r.name.padEnd(nameW)}${status} ${r.message}${badge}`);
+const SEP_WIDTH = 65;
+
+function sectionHeader(title: string): string {
+  const inner = `── ${title} `;
+  const trailing = "─".repeat(Math.max(0, SEP_WIDTH - 2 - inner.length));
+  return `  ${inner}${trailing}`;
+}
+
+function printSection(title: string, checks: CheckResult[], _level: "error" | "warn"): void {
+  console.log(pc.dim(sectionHeader(title)));
+  for (const r of checks) {
+    printCheckRow(r);
+    if (r.hint && r.hint.length > 0) printInlineHints(r.hint);
   }
+  printActionPrompt(checks);
+  console.log();
+}
 
-  console.log(pc.dim(sep));
-
-  const errors = results.filter((r) => r.status === "error").length;
-  const warns  = results.filter((r) => r.status === "warn").length;
-  const oks    = results.filter((r) => r.status === "ok").length;
-
-  const summary = [
-    oks    ? pc.green(`${oks} ok`)          : "",
-    warns  ? pc.yellow(`${warns} advertencias`) : "",
-    errors ? pc.red(`${errors} errores`)      : "",
-  ].filter(Boolean).join(pc.dim(" · "));
-
-  console.log(`\n  ${summary}\n`);
-
-  const fixable = results.filter((r) => r.fixable).length;
-  if (fixable > 0) {
-    console.log(pc.dim(`  ${fixable} problema(s) con corrección automática disponible → ejecuta con --fix\n`));
+function printCheckRow(r: CheckResult): void {
+  if (r.wasFixed) {
+    console.log(`  ${pc.green("✓")} ${r.name}  ${r.message}  ${pc.green("[fixed]")}`);
+    return;
   }
-
-  const withHints = results.filter((r) => r.hint && r.hint.length > 0);
-  if (withHints.length > 0) {
-    for (const r of withHints) {
-      console.log(pc.bold(pc.cyan(`  ℹ  ${r.name}`)));
-      for (const line of r.hint!) {
-        console.log(pc.dim(`     ${line}`));
-      }
-      console.log();
-    }
+  if (r.status === "error") {
+    console.log(`  ${pc.red("✗")} ${r.name}  ${r.message}`);
+    return;
   }
+  if (r.status === "warn") {
+    console.log(`  ${pc.yellow("⚠")} ${r.name}  ${r.message}`);
+    return;
+  }
+  console.log(`  ${pc.green("✓")} ${r.name}  ${r.message}`);
+}
+
+function printInlineHints(hints: string[]): void {
+  for (const hint of hints) {
+    console.log(pc.dim(`     ${hint}`));
+  }
+}
+
+function printActionPrompt(checks: CheckResult[]): void {
+  if (checks.some(r => r.fixable)) {
+    console.log(pc.dim("  → locksmith . --fix"));
+  }
+}
+
+function printCollapsedOk(checks: CheckResult[]): void {
+  console.log(pc.dim(sectionHeader("TODO OK")));
+  const names = checks
+    .map(r => r.wasFixed ? `${r.name} ${pc.green("[fixed]")}` : r.name)
+    .join(pc.dim(" · "));
+  console.log(`  ${pc.green("✓")} ${names}  ${pc.dim(`(${checks.length} checks)`)}`);
+  console.log();
 }
