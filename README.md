@@ -31,6 +31,23 @@ cd locksmith
 .\install.ps1
 ```
 
+The installer walks through 5 steps: Bun · pnpm · dependencies · `locksmith` command · AI client configuration.
+
+Step 5 shows an interactive multiselect — pick which AI clients to configure (MCP server + behavior rules):
+
+```
+  ↑↓ navegar · espacio marcar · enter confirmar
+
+  › [✓] Claude Desktop + Claude Code
+    [✓] Cursor
+    [ ] Windsurf
+    [ ] Cline
+    [ ] Kiro (Amazon)
+    [ ] Trae (ByteDance)
+    [ ] GitHub Copilot
+    [ ] Google Antigravity
+```
+
 **Run without installing**
 
 ```bash
@@ -161,6 +178,40 @@ jobs:
       - name: Run security checks
         run: locksmith . --strict
 ```
+
+---
+
+## AI Integration (MCP Server)
+
+locksmith exposes all operations as MCP tools. Any MCP-compatible AI client can call them directly — no CLI needed.
+
+### Supported clients
+
+| Client | MCP auto-configured | Behavior rules |
+|---|---|---|
+| Claude Desktop + Claude Code | ✓ global | `~/.claude/CLAUDE.md` |
+| Cursor | ✓ global (`~/.cursor/mcp.json`) | `.cursor/rules/locksmith.md` per project |
+| Windsurf | ✓ global (`~/.codeium/windsurf/mcp_config.json`) | `.windsurf/rules/locksmith.md` per project |
+| Cline | ✓ global (VSCode extension storage) | `.clinerules/locksmith.md` per project |
+| Kiro (Amazon) | ✓ global (`~/.kiro/settings/mcp.json`) | `~/.kiro/steering/locksmith.md` global |
+| Trae (ByteDance) | manual (`.trae/mcp.json`) | `.trae/rules/locksmith.md` per project |
+| GitHub Copilot | no MCP support | `.github/copilot-instructions.md` per project |
+| Google Antigravity | in progress | `AGENTS.md` per project |
+
+For project-level rules files, copy `docs/ai-skill.md` to the path shown above.
+
+### MCP tools
+
+| Tool | What it does |
+|---|---|
+| `locksmith_audit` | Full security audit |
+| `locksmith_fix` | Apply auto-fixes (requires user approval) |
+| `locksmith_audit_dockerfile` | Analyze Dockerfile |
+| `locksmith_fix_dockerfile` | Fix Dockerfile (requires user approval) |
+| `locksmith_check_outdated` | Outdated packages vs Renovate policy |
+| `locksmith_safe_add` | Inspect package before installing |
+
+→ Full behavior rules and tool reference: [docs/ai-skill.md](docs/ai-skill.md)
 
 ---
 
