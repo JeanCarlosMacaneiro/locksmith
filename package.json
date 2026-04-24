@@ -11,7 +11,11 @@
     "build": "bun build ./bin/cli.ts --outdir ./dist --target bun --minify",
     "test": "bun test",
     "lint": "bunx tsc --noEmit",
-    "preinstall": "npx only-allow pnpm"
+    "preinstall": "npx only-allow pnpm",
+    "security": "locksmith .",
+    "security:fix": "locksmith . --fix",
+    "security:ci": "locksmith . --strict",
+    "install:ci": "pnpm install --frozen-lockfile --ignore-scripts"
   },
   "dependencies": {
     "picocolors": "^1.1.1",

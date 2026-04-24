@@ -38,3 +38,11 @@ desktop.ini
 # ─── bun ─────────────────────────────────────────────────────────────────────
 # bun.lock is committed — do not ignore it
 contexto.md
+
+# Security — added by locksmith
+.env*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
