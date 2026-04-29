@@ -315,8 +315,14 @@ describe("promptDockerFix — properties (filesystem-based)", () => {
         writeFileSync(dockerfilePath, original);
 
         const analyses = [{ found: true, dockerfilePath, issues, proposedContent: "CHANGED" }];
-        // In test environments process.stdin.isTTY is false — promptDockerFix skips fixes
-        await promptDockerFix(analyses, dir, false);
+        const stdinAny = process.stdin as unknown as { isTTY?: boolean };
+        const orig = stdinAny.isTTY;
+        stdinAny.isTTY = false;
+        try {
+          await promptDockerFix(analyses, dir, false);
+        } finally {
+          stdinAny.isTTY = orig;
+        }
 
         return readFileSync(dockerfilePath, "utf-8") === original;
       }
