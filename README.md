@@ -7,6 +7,7 @@ CLI and MCP server to audit and enforce security policies for **Node.js/Bun (pnp
 - Applies auto-fixes when available (`--fix`)
 - Analyzes and fixes Dockerfiles (multi-stage aware) (`--fix-dockerfile`, alias `--fix-docker`)
 - Checks outdated packages against Renovate policy (`--outdated`)
+- Installs MCP integration per project for IDE clients (`--install-mcp`)
 - “Safe add/update”: inspects packages before installing/updating via pnpm (`add`, `update`)
 - Exposes operations as MCP tools for AI clients
 
@@ -35,6 +36,10 @@ cd locksmith
 
 The installer runs 5 steps: Bun · pnpm · dependencies · `locksmith` command · AI client (MCP) configuration.
 
+Global MCP setup is configured for **Claude Desktop + Claude Code**.
+
+For IDE-based clients (Trae, Cursor, Windsurf, Cline, Copilot, etc.), use the per-project command `locksmith --install-mcp`.
+
 **Run without installing**
 ```bash
 bun run ./bin/cli.ts [path] [options]
@@ -48,6 +53,7 @@ locksmith --fix                    # auto-fix + re-check + Dockerfile prompt
 locksmith --fix-dockerfile         # auto-fix Dockerfile only (skips checks)
 locksmith --outdated               # outdated packages vs Renovate policy
 locksmith --outdated --fix         # auto-apply safe patches allowed by policy
+locksmith --install-mcp            # configure MCP + rules for IDE clients (per project)
 locksmith . --report json          # exports security-report.json in the project
 locksmith . --report markdown      # exports security-report.md in the project
 locksmith . --strict               # exit 1 on warnings too (CI mode)
@@ -63,6 +69,7 @@ locksmith . --strict               # exit 1 on warnings too (CI mode)
 | `locksmith --fix-docker` | Alias for `--fix-dockerfile` | [Dockerfile](docs/dockerfile.md) |
 | `locksmith --outdated` | Outdated packages vs Renovate policy delays | [Outdated packages](docs/outdated.md) |
 | `locksmith --outdated --fix` | Auto-apply safe patch updates allowed by policy | [Outdated packages](docs/outdated.md) |
+| `locksmith --install-mcp` | Installs per-project MCP + rules for IDE clients | — |
 | `locksmith --report json\|markdown` | Export results into a file in the project | — |
 | `locksmith --strict` | Exit `1` on warnings too (CI mode) | — |
 | `locksmith add <pkg>[@version]` | Inspect package security before installing via pnpm | [Safe add/update](docs/safe-add.md) |
@@ -133,6 +140,18 @@ jobs:
 ## AI Integration (MCP Server)
 
 locksmith exposes all operations as MCP tools. Any MCP-compatible AI client can call them directly — no CLI needed.
+
+### Per-project IDE setup
+
+Run `locksmith --install-mcp` in a project to create/update:
+
+- `.trae/mcp.json` (adds `mcpServers.locksmith`)
+- `.trae/rules/locksmith.md`
+- `.cursor/rules/locksmith.md`
+- `.windsurf/rules/locksmith.md`
+- `.clinerules/locksmith.md`
+- `.github/copilot-instructions.md`
+- `AGENTS.md`
 
 ### MCP tools
 | Tool | What it does |

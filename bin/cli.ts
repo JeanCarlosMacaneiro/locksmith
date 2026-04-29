@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+import { join } from "path";
 import { runAllChecks } from "../src/checks/index";
 import { runSafeAdd, runSafeUpdate } from "../src/add/index";
+import { installProjectMcp } from "../src/mcp/project-install";
 import type { RunOptions } from "../src/types";
 
 yargs(hideBin(process.argv))
@@ -47,8 +49,27 @@ yargs(hideBin(process.argv))
           type: "boolean",
           description: "Verifica paquetes desactualizados y valida contra política de Renovate",
           default: false,
+        })
+        .option("install-mcp", {
+          type: "boolean",
+          description: "Configura integración MCP por proyecto (clientes basados en IDE)",
+          default: false,
         }),
     async (argv) => {
+      if (argv["install-mcp"] as boolean) {
+        const { created } = await installProjectMcp({
+          projectPath: argv.path as string,
+          locksmithRoot: join(import.meta.dir, ".."),
+        });
+        if (created.length === 0) {
+          console.log("✓ MCP por proyecto ya estaba configurado");
+        } else {
+          console.log("✓ MCP por proyecto configurado");
+          for (const p of created) console.log(`  → ${p}`);
+        }
+        return;
+      }
+
       const fixDocker = argv["fix-docker"] as boolean;
       const opts: RunOptions = {
         projectPath:   argv.path as string,

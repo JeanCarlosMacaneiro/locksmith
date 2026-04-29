@@ -97,7 +97,7 @@ ok "Symlink creado: $LINK → $TARGET"
 
 # ─── step 5: configurar clientes AI ──────────────────────────────────────────
 step "5/5  Configurando clientes AI"
-bun "$SCRIPT_DIR/bin/register-mcp.ts"
+bun "$SCRIPT_DIR/bin/register-mcp.ts" --clients claude-desktop
 
 # ─── PATH ─────────────────────────────────────────────────────────────────────
 

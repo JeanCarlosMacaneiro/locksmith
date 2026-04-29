@@ -317,10 +317,41 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
 }
 
 if (import.meta.main) {
-  main().catch((err: Error) => {
+  const clientsFlag = "--clients";
+  const idx = process.argv.indexOf(clientsFlag);
+
+  if (idx !== -1) {
+    const raw = process.argv[idx + 1] ?? "";
+    const ids = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const scriptDir = join(import.meta.dir, "..");
+    const mcpEntry = join(import.meta.dir, "mcp.ts");
+
+    Promise.resolve()
+      .then(async () => {
+        for (const id of ids) {
+          const client = CLIENTS.find((c) => c.id === id);
+          if (!client) {
+            process.stderr.write(`Cliente desconocido: ${id}\n`);
+            process.exitCode = 1;
+            continue;
+          }
+          await registerClient(client, mcpEntry, scriptDir);
+        }
+      })
+      .catch((err: Error) => {
+        process.stderr.write(`Error: ${err}\n`);
+        process.exit(1);
+      });
+  } else {
+    main().catch((err: Error) => {
     if (err.message !== "Interrupted") {
       process.stderr.write(`Error: ${err}\n`);
       process.exit(1);
     }
-  });
+    });
+  }
 }
