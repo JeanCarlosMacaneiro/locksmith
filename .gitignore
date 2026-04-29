@@ -35,6 +35,10 @@ desktop.ini
 *.njsproj
 *.sln
 
+# ─── AI tooling (local only) ─────────────────────────────────────────────────
+.claude/
+CLAUDE.md
+
 # ─── bun ─────────────────────────────────────────────────────────────────────
 # bun.lock is committed — do not ignore it
 contexto.md
