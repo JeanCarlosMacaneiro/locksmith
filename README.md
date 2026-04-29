@@ -54,6 +54,7 @@ locksmith --fix-dockerfile         # auto-fix Dockerfile only (skips checks)
 locksmith --outdated               # outdated packages vs Renovate policy
 locksmith --outdated --fix         # auto-apply safe patches allowed by policy
 locksmith --install-mcp            # configure MCP + rules for IDE clients (per project)
+locksmith --install-mcp --install-mcp-clients trae,cursor   # non-interactive subset
 locksmith . --report json          # exports security-report.json in the project
 locksmith . --report markdown      # exports security-report.md in the project
 locksmith . --strict               # exit 1 on warnings too (CI mode)
@@ -70,6 +71,7 @@ locksmith . --strict               # exit 1 on warnings too (CI mode)
 | `locksmith --outdated` | Outdated packages vs Renovate policy delays | [Outdated packages](docs/outdated.md) |
 | `locksmith --outdated --fix` | Auto-apply safe patch updates allowed by policy | [Outdated packages](docs/outdated.md) |
 | `locksmith --install-mcp` | Installs per-project MCP + rules for IDE clients | — |
+| `locksmith --install-mcp --install-mcp-clients <csv>` | Non-interactive client selection | — |
 | `locksmith --report json\|markdown` | Export results into a file in the project | — |
 | `locksmith --strict` | Exit `1` on warnings too (CI mode) | — |
 | `locksmith add <pkg>[@version]` | Inspect package security before installing via pnpm | [Safe add/update](docs/safe-add.md) |
@@ -152,6 +154,12 @@ Run `locksmith --install-mcp` in a project to create/update:
 - `.clinerules/locksmith.md`
 - `.github/copilot-instructions.md`
 - `AGENTS.md`
+
+In interactive terminals, `--install-mcp` will prompt a multi-select.
+
+For non-interactive environments (CI/scripts), use:
+
+`locksmith --install-mcp --install-mcp-clients trae,cursor,windsurf,cline,copilot,agents`
 
 ### MCP tools
 | Tool | What it does |

@@ -51,6 +51,25 @@ describe("installProjectMcp", () => {
     expect(result.created.length).toBe(0);
   });
 
+  it("supports installing a subset of targets", async () => {
+    const result = await installProjectMcp({
+      projectPath: projectDir,
+      locksmithRoot: ROOT,
+      targets: ["trae", "cursor"],
+    });
+
+    expect(existsSync(join(projectDir, ".trae/mcp.json"))).toBe(true);
+    expect(existsSync(join(projectDir, ".trae/rules/locksmith.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".cursor/rules/locksmith.md"))).toBe(true);
+
+    expect(existsSync(join(projectDir, ".windsurf/rules/locksmith.md"))).toBe(false);
+    expect(existsSync(join(projectDir, ".clinerules/locksmith.md"))).toBe(false);
+    expect(existsSync(join(projectDir, ".github/copilot-instructions.md"))).toBe(false);
+    expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(false);
+
+    expect(result.created).toContain(join(projectDir, ".trae/mcp.json"));
+  });
+
   it("merges existing Trae mcpServers", async () => {
     const traeMcp = join(projectDir, ".trae/mcp.json");
     rmSync(join(projectDir, ".trae"), { recursive: true, force: true });

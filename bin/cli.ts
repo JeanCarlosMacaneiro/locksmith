@@ -5,7 +5,18 @@ import { join } from "path";
 import { runAllChecks } from "../src/checks/index";
 import { runSafeAdd, runSafeUpdate } from "../src/add/index";
 import { installProjectMcp } from "../src/mcp/project-install";
+import type { InstallProjectMcpTarget } from "../src/mcp/project-install";
 import type { RunOptions } from "../src/types";
+
+function parseInstallMcpClients(raw: unknown): InstallProjectMcpTarget[] | null {
+  if (typeof raw !== "string") return null;
+  const allowed: InstallProjectMcpTarget[] = ["trae", "cursor", "windsurf", "cline", "copilot", "agents"];
+  const set = new Set<InstallProjectMcpTarget>();
+  for (const part of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+    if ((allowed as string[]).includes(part)) set.add(part as InstallProjectMcpTarget);
+  }
+  return [...set];
+}
 
 yargs(hideBin(process.argv))
   .scriptName("locksmith")
@@ -54,12 +65,35 @@ yargs(hideBin(process.argv))
           type: "boolean",
           description: "Configura integración MCP por proyecto (clientes basados en IDE)",
           default: false,
+        })
+        .option("install-mcp-clients", {
+          type: "string",
+          description: "Lista CSV para modo no interactivo: trae,cursor,windsurf,cline,copilot,agents",
         }),
     async (argv) => {
       if (argv["install-mcp"] as boolean) {
+        const nonInteractiveTargets = parseInstallMcpClients(argv["install-mcp-clients"]);
+        const targets: InstallProjectMcpTarget[] = nonInteractiveTargets ??
+          (process.stdin.isTTY
+            ? (await (await import("../bin/register-mcp")).multiselect([
+                "Trae (MCP + rules)",
+                "Cursor (rules)",
+                "Windsurf (rules)",
+                "Cline (rules)",
+                "GitHub Copilot (rules)",
+                "AGENTS.md (rules)",
+              ])).map((i) => ["trae", "cursor", "windsurf", "cline", "copilot", "agents"][i] as InstallProjectMcpTarget)
+            : ["trae", "cursor", "windsurf", "cline", "copilot", "agents"]);
+
+        if (targets.length === 0) {
+          console.log("⚠ Ningún cliente seleccionado — omitiendo configuración");
+          return;
+        }
+
         const { created } = await installProjectMcp({
           projectPath: argv.path as string,
           locksmithRoot: join(import.meta.dir, ".."),
+          targets,
         });
         if (created.length === 0) {
           console.log("✓ MCP por proyecto ya estaba configurado");
