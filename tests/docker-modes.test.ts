@@ -14,8 +14,8 @@ import type { RunOptions } from "../src/types";
 // check-audit mocked because pnpm audit requires node_modules installed.
 // check-pnpm NOT mocked — pnpm is installed on this system, returns "ok".
 
-const mockShowDockerWarnings = mock(async () => {});
-const mockPromptDockerFix    = mock(async () => {});
+const mockShowDockerWarnings = mock(async (..._args: unknown[]) => {});
+const mockPromptDockerFix    = mock(async (..._args: unknown[]) => {});
 
 mock.module("../src/checks/check-audit", () => ({
   checkAudit: mock(async () => ({ name: "pnpm audit", status: "ok" as const, message: "ok" })),
@@ -123,14 +123,14 @@ describe("Orchestrator — modos de operación Docker", () => {
   describe("Audit_Mode (sin flags de fix)", () => {
     it("invoca showDockerWarnings y no promptDockerFix", async () => {
       createValidProject(dir);
-      await runSafely({ projectPath: dir, fix: false, fixDockerfile: false, strict: false, outdated: false });
+      await runSafely({ projectPath: dir, fix: false, fixDockerfile: false, fixDocker: false, strict: false, outdated: false });
       expect(mockShowDockerWarnings).toHaveBeenCalled();
       expect(mockPromptDockerFix).not.toHaveBeenCalled();
     });
 
     it("sale con código 0 cuando todos los checks pasan", async () => {
       createValidProject(dir);
-      const code = await runSafely({ projectPath: dir, fix: false, fixDockerfile: false, strict: false, outdated: false });
+      const code = await runSafely({ projectPath: dir, fix: false, fixDockerfile: false, fixDocker: false, strict: false, outdated: false });
       expect(code).toBe(0);
     });
   });
@@ -140,7 +140,7 @@ describe("Orchestrator — modos de operación Docker", () => {
   describe("Fix_Mode (--fix)", () => {
     it("invoca promptDockerFix con autoFix=false", async () => {
       createValidProject(dir);
-      await runSafely({ projectPath: dir, fix: true, fixDockerfile: false, strict: false, outdated: false });
+      await runSafely({ projectPath: dir, fix: true, fixDockerfile: false, fixDocker: false, strict: false, outdated: false });
       expect(mockPromptDockerFix).toHaveBeenCalled();
       // third argument to promptDockerFix is autoFix
       expect(mockPromptDockerFix.mock.calls[0]?.[2]).toBe(false);
@@ -148,7 +148,7 @@ describe("Orchestrator — modos de operación Docker", () => {
 
     it("no invoca showDockerWarnings", async () => {
       createValidProject(dir);
-      await runSafely({ projectPath: dir, fix: true, fixDockerfile: false, strict: false, outdated: false });
+      await runSafely({ projectPath: dir, fix: true, fixDockerfile: false, fixDocker: false, strict: false, outdated: false });
       expect(mockShowDockerWarnings).not.toHaveBeenCalled();
     });
   });
@@ -158,7 +158,7 @@ describe("Orchestrator — modos de operación Docker", () => {
   describe("Dockerfile_Fix_Mode (--fix-dockerfile sin --fix)", () => {
     it("invoca promptDockerFix con autoFix=true", async () => {
       createValidProject(dir);
-      await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, strict: false, outdated: false });
+      await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, fixDocker: false, strict: false, outdated: false });
       expect(mockPromptDockerFix).toHaveBeenCalled();
       // third argument to promptDockerFix is autoFix
       expect(mockPromptDockerFix.mock.calls[0]?.[2]).toBe(true);
@@ -166,7 +166,7 @@ describe("Orchestrator — modos de operación Docker", () => {
 
     it("no invoca showDockerWarnings", async () => {
       createValidProject(dir);
-      await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, strict: false, outdated: false });
+      await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, fixDocker: false, strict: false, outdated: false });
       expect(mockShowDockerWarnings).not.toHaveBeenCalled();
     });
 
@@ -175,14 +175,23 @@ describe("Orchestrator — modos de operación Docker", () => {
       // If security checks ran they'd return errors → exit 1.
       // Dockerfile_Fix_Mode skips them → exit 0.
       writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "broken", version: "1.0.0" }));
-      const code = await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, strict: false, outdated: false });
+      const code = await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, fixDocker: false, strict: false, outdated: false });
       expect(code).toBe(0);
     });
 
     it("sale con código 0", async () => {
       createValidProject(dir);
-      const code = await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, strict: false, outdated: false });
+      const code = await runSafely({ projectPath: dir, fix: false, fixDockerfile: true, fixDocker: false, strict: false, outdated: false });
       expect(code).toBe(0);
+    });
+  });
+
+  describe("Dockerfile_Fix_Mode (--fix-docker sin --fix)", () => {
+    it("invoca promptDockerFix con autoFix=true", async () => {
+      createValidProject(dir);
+      await runSafely({ projectPath: dir, fix: false, fixDockerfile: false, fixDocker: true, strict: false, outdated: false });
+      expect(mockPromptDockerFix).toHaveBeenCalled();
+      expect(mockPromptDockerFix.mock.calls[0]?.[2]).toBe(true);
     });
   });
 });

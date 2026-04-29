@@ -22,6 +22,7 @@ export interface RunOptions {
   projectPath: string;
   fix: boolean;
   fixDockerfile: boolean;
+  fixDocker: boolean;
   report?: "json" | "markdown";
   strict: boolean;
   outdated: boolean;
@@ -31,12 +32,19 @@ export interface RunOptions {
 
 export type DockerIssueKind = "pin-version" | "missing-flag" | "missing-copy" | "missing-cmd" | "update-from" | "advisory";
 
+export type DockerSeverity = "critical" | "high" | "medium" | "low" | "info";
+
 export interface DockerIssue {
   line: number;
   kind: DockerIssueKind;
   description: string;
   original: string;
   replacement: string | null;
+  severity?: DockerSeverity;
+  remediationGuide?: string;
+  source?: "internal" | "hadolint" | "trivy" | "docker-scout";
+  cveId?: string;
+  hadolintCode?: string;
 }
 
 export interface DockerfileAnalysis {
@@ -44,6 +52,33 @@ export interface DockerfileAnalysis {
   dockerfilePath: string | null;
   issues: DockerIssue[];
   proposedContent: string | null;
+}
+
+export interface ScannerStatus {
+  name: string;
+  status: "ok" | "skipped" | "unavailable" | "error";
+  issuesFound: number;
+}
+
+export interface QualityGateSummary {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export interface DockerSecurityReport {
+  found: boolean;
+  dockerfilePath: string | null;
+  issues: DockerIssue[];
+  issueCount: number;
+  hasFixableIssues: boolean;
+  qualityGatePassed: boolean;
+  qualityGateSummary: QualityGateSummary;
+  internalChecksRan: boolean;
+  scanners: ScannerStatus[];
+  llmFixInstructions?: string;
 }
 
 // ─── safe-add ────────────────────────────────────────────────────────────────

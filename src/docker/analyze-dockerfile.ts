@@ -1,6 +1,11 @@
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import type { DockerfileAnalysis, DockerIssue } from "../types";
+import { checkLayerCache } from "./check-layer-cache";
+import { checkUserDirective } from "./check-user-directive";
+import { checkDockerignore } from "./check-dockerignore";
+import { checkMultistage } from "./check-multistage";
+import { checkAptCleanup } from "./check-apt-cleanup";
 
 function findDockerfiles(projectPath: string): string[] {
   const found: string[] = [];
@@ -421,7 +426,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
 export function buildProposedContent(lines: string[], issues: DockerIssue[]): string {
   const byLine = new Map<number, DockerIssue[]>();
   for (const issue of issues) {
-    if (issue.replacement !== null) {
+    if (issue.replacement !== null && !issue.original.startsWith(".dockerignore")) {
       const arr = byLine.get(issue.line) ?? [];
       arr.push(issue);
       byLine.set(issue.line, arr);
@@ -461,7 +466,41 @@ export function buildProposedContent(lines: string[], issues: DockerIssue[]): st
   return result.join("\n");
 }
 
-export function analyzeDockerfile(projectPath: string, projectType: string): DockerfileAnalysis[] {
+function defaultSeverityForKind(kind: DockerIssue["kind"]): "critical" | "high" | "medium" | "low" | "info" {
+  if (kind === "pin-version" || kind === "missing-cmd") return "high";
+  if (kind === "missing-flag" || kind === "missing-copy" || kind === "update-from") return "medium";
+  if (kind === "advisory") return "low";
+  return "info";
+}
+
+function buildDefaultRemediationGuide(issue: DockerIssue): string {
+  const base = [
+    issue.description,
+    issue.replacement !== null ? "Ejemplo de corrección:" : "Corrección recomendada: revisa la instrucción y aplica buenas prácticas.",
+    issue.replacement !== null ? issue.replacement : "",
+  ]
+    .filter((x) => x !== "")
+    .join("\n");
+
+  return base.trim() === "" ? "Revisa este issue y aplica la remediación recomendada." : base;
+}
+
+function enrichIssues(issues: DockerIssue[]): void {
+  for (const issue of issues) {
+    if (!issue.source) issue.source = "internal";
+    if (!issue.severity) issue.severity = defaultSeverityForKind(issue.kind);
+    if (!issue.remediationGuide) issue.remediationGuide = buildDefaultRemediationGuide(issue);
+    if (issue.replacement !== null && !issue.remediationGuide.includes(issue.replacement)) {
+      issue.remediationGuide = `${issue.remediationGuide}\n${issue.replacement}`;
+    }
+  }
+}
+
+export function analyzeDockerfile(
+  projectPath: string,
+  projectType: string,
+  opts?: { security?: boolean },
+): DockerfileAnalysis[] {
   const paths = findDockerfiles(projectPath);
 
   if (paths.length === 0) {
@@ -470,6 +509,8 @@ export function analyzeDockerfile(projectPath: string, projectType: string): Doc
 
   const pnpmVersion = projectType !== "python" ? getPnpmVersion(projectPath) : undefined;
   const poetryProject = projectType === "python" ? isPoetryProject(projectPath) : false;
+  const security = Boolean(opts?.security);
+  const dockerignoreIssues = security ? checkDockerignore(projectPath) : [];
 
   return paths.map((dockerfilePath) => {
     const content = readFileSync(dockerfilePath, "utf-8");
@@ -482,8 +523,18 @@ export function analyzeDockerfile(projectPath: string, projectType: string): Doc
       analyzePythonLines(lines, issues, poetryProject);
     }
 
-    const fixableCount   = issues.filter(x => x.replacement !== null).length;
-    const proposedContent = fixableCount > 0 ? buildProposedContent(lines, issues) : null;
+    if (security) {
+      issues.push(...checkLayerCache(lines, projectType));
+      issues.push(...checkUserDirective(lines));
+      issues.push(...checkMultistage(lines, projectType));
+      issues.push(...checkAptCleanup(lines));
+      issues.push(...dockerignoreIssues);
+    }
+
+    enrichIssues(issues);
+
+    const dockerfileFixableCount = issues.filter(x => x.replacement !== null && !x.original.startsWith(".dockerignore")).length;
+    const proposedContent = dockerfileFixableCount > 0 ? buildProposedContent(lines, issues) : null;
 
     return { found: true, dockerfilePath, issues, proposedContent };
   });

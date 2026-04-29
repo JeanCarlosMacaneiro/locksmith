@@ -98,7 +98,7 @@ export async function runAllChecks(opts: RunOptions) {
   );
 
   // --fix-dockerfile only: skip security checks, apply Docker fixes directly
-  if (opts.fixDockerfile && !opts.fix) {
+  if ((opts.fixDockerfile || opts.fixDocker) && !opts.fix) {
     await runDockerfileFlow(opts.projectPath, project.type, "fix", true);
     process.exit(0);
   }

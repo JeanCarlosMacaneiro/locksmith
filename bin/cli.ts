@@ -28,6 +28,11 @@ yargs(hideBin(process.argv))
           description: "Analiza y corrige Dockerfile del proyecto (Node y Python)",
           default: false,
         })
+        .option("fix-docker", {
+          type: "boolean",
+          description: "Alias de --fix-dockerfile",
+          default: false,
+        })
         .option("report", {
           type: "string",
           choices: ["json", "markdown"] as const,
@@ -44,10 +49,12 @@ yargs(hideBin(process.argv))
           default: false,
         }),
     async (argv) => {
+      const fixDocker = argv["fix-docker"] as boolean;
       const opts: RunOptions = {
         projectPath:   argv.path as string,
         fix:           argv.fix,
-        fixDockerfile: argv["fix-dockerfile"] as boolean,
+        fixDockerfile: (argv["fix-dockerfile"] as boolean) || fixDocker,
+        fixDocker,
         report:        argv.report as "json" | "markdown" | undefined,
         strict:        argv.strict,
         outdated:      argv.outdated,

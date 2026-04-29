@@ -36,7 +36,14 @@ describe("Modo no interactivo", () => {
 
   it("isInteractive() sin TTY → false (en entorno de test, stdin no es TTY)", () => {
     delete process.env.CI;
-    expect(isInteractive()).toBe(false);
+    const stdinAny = process.stdin as unknown as { isTTY?: boolean };
+    const orig = stdinAny.isTTY;
+    stdinAny.isTTY = false;
+    try {
+      expect(isInteractive()).toBe(false);
+    } finally {
+      stdinAny.isTTY = orig;
+    }
   });
 
   it("main() con interactive=false → termina sin error, sin crear archivos", async () => {

@@ -1,4 +1,11 @@
-import type { CheckResult, DockerIssue, OutdatedPackage, DangerousScript, SocketScore } from "../types";
+import type {
+  CheckResult,
+  DockerIssue,
+  OutdatedPackage,
+  DangerousScript,
+  SocketScore,
+  QualityGateSummary,
+} from "../types";
 
 // ─── Tool definition ──────────────────────────────────────────────────────────
 
@@ -47,14 +54,50 @@ export interface DockerAuditOutput {
   issues: DockerIssue[];
   issueCount: number;
   hasFixableIssues: boolean;
+  qualityGatePassed?: boolean;
+  qualityGateSummary?: QualityGateSummary;
 }
 
 // ─── locksmith_fix_dockerfile output ─────────────────────────────────────────
+
+export interface BuildFailure {
+  exitCode: number;
+  stderr: string;
+  appliedFixes: DockerIssue[];
+  originalContent: string;
+  fixedContent: string;
+}
+
+export interface LLMContext {
+  diff: string;
+  buildError: string;
+  probableCause: string;
+  suggestedApproach: string;
+  userMessage: string;
+}
+
+export interface NextStep {
+  tool: "locksmith_fix_docker";
+  requiredParams: {
+    projectPath: string;
+    verifyBuild: true;
+    buildFixProposal: string;
+  };
+}
 
 export interface DockerFixOutput {
   fixed: boolean;
   issuesFixed: number;
   dockerfilePath: string | null;
+  buildVerified?: boolean;
+  buildSkipped?: boolean;
+  buildFixed?: boolean;
+  buildFailure?: BuildFailure;
+  llmContext?: LLMContext;
+  iterationCount?: number;
+  remainingIterations?: number;
+  nextStep?: NextStep;
+  maxIterationsReached?: boolean;
 }
 
 // ─── locksmith_check_outdated output ─────────────────────────────────────────

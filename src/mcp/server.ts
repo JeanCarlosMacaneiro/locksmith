@@ -3,7 +3,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { ToolDefinition } from "./types";
 import { auditTool } from "./tools/audit";
 import { fixTool } from "./tools/fix";
+import { auditDockerTool } from "./tools/audit-docker";
+import { auditDockerSecurityTool } from "./tools/audit-docker-security";
 import { auditDockerfileTool } from "./tools/audit-dockerfile";
+import { fixDockerTool } from "./tools/fix-docker";
 import { fixDockerfileTool } from "./tools/fix-dockerfile";
 import { checkOutdatedTool } from "./tools/check-outdated";
 import { safeAddTool } from "./tools/safe-add";
@@ -11,6 +14,9 @@ import { safeAddTool } from "./tools/safe-add";
 const TOOLS: ToolDefinition[] = [
   auditTool,
   fixTool,
+  auditDockerTool,
+  auditDockerSecurityTool,
+  fixDockerTool,
   auditDockerfileTool,
   fixDockerfileTool,
   checkOutdatedTool,
