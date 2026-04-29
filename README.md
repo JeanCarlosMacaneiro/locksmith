@@ -1,71 +1,69 @@
 # locksmith
 
-CLI that audits and enforces security policies for **Node.js / Bun** and **Python** projects. Detects the language automatically and runs all checks in parallel — no configuration needed.
+CLI and MCP server to audit and enforce security policies for **Node.js/Bun (pnpm)** and **Python (Poetry)** projects. It auto-detects the project type, runs checks in parallel, and can apply safe auto-fixes.
 
----
+## What it does
+- Audits project security configuration and practices (Node/Bun or Python)
+- Applies auto-fixes when available (`--fix`)
+- Analyzes and fixes Dockerfiles (multi-stage aware) (`--fix-dockerfile`, alias `--fix-docker`)
+- Checks outdated packages against Renovate policy (`--outdated`)
+- “Safe add/update”: inspects packages before installing/updating via pnpm (`add`, `update`)
+- Exposes operations as MCP tools for AI clients
 
 ## Requirements
 
 | Ecosystem | Requirement |
 |---|---|
 | Node.js / Bun | [Bun](https://bun.sh) `>= 1.0` · [pnpm](https://pnpm.io) `>= 8.0` |
-| Python | [Poetry](https://python-poetry.org) `>= 1.8` · [Python](https://python.org) `>= 3.12` |
-
----
+| Python | [Python](https://python.org) `>= 3.12` · [Poetry](https://python-poetry.org) `>= 1.8` |
 
 ## Installation
 
 **macOS / Linux**
-
 ```bash
-git clone https://github.com/your-org/locksmith.git
+git clone https://github.com/JeanCarlosMacaneiro/locksmith.git
 cd locksmith
 ./install.sh
 ```
 
 **Windows (PowerShell)**
-
 ```powershell
-git clone https://github.com/your-org/locksmith.git
+git clone https://github.com/JeanCarlosMacaneiro/locksmith.git
 cd locksmith
 .\install.ps1
 ```
 
-The installer walks through 5 steps: Bun · pnpm · dependencies · `locksmith` command · AI client configuration.
-
-Step 5 shows an interactive multiselect — pick which AI clients to configure (MCP server + behavior rules):
-
-```
-  ↑↓ navegar · espacio marcar · enter confirmar
-
-  › [✓] Claude Desktop + Claude Code
-    [✓] Cursor
-    [ ] Windsurf
-    [ ] Cline
-    [ ] Kiro (Amazon)
-    [ ] Trae (ByteDance)
-    [ ] GitHub Copilot
-    [ ] Google Antigravity
-```
+The installer runs 5 steps: Bun · pnpm · dependencies · `locksmith` command · AI client (MCP) configuration.
 
 **Run without installing**
-
 ```bash
 bun run ./bin/cli.ts [path] [options]
 ```
 
----
+## Quick start
 
-## Commands
+```bash
+locksmith                          # audit + Dockerfile warnings
+locksmith --fix                    # auto-fix + re-check + Dockerfile prompt
+locksmith --fix-dockerfile         # auto-fix Dockerfile only (skips checks)
+locksmith --outdated               # outdated packages vs Renovate policy
+locksmith --outdated --fix         # auto-apply safe patches allowed by policy
+locksmith . --report json          # exports security-report.json in the project
+locksmith . --report markdown      # exports security-report.md in the project
+locksmith . --strict               # exit 1 on warnings too (CI mode)
+```
+
+## Command reference
 
 | Command | What it does | Docs |
 |---|---|---|
-| `locksmith [path]` | Run all security checks (Node.js or Python, auto-detected) | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
-| `locksmith --fix` | Apply all available auto-fixes, then prompt to update Dockerfile | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
-| `locksmith --fix-dockerfile` | Analyze and fix Dockerfile only — skips security checks | [Dockerfile](docs/dockerfile.md) |
-| `locksmith --outdated` | Show outdated packages against Renovate policy delays | [Outdated packages](docs/outdated.md) |
-| `locksmith --outdated --fix` | Auto-apply safe patch updates that meet the policy age | [Outdated packages](docs/outdated.md) |
-| `locksmith --report json\|markdown` | Export results to a file | — |
+| `locksmith [path]` | Runs the security audit (auto-detects Node/Bun/Python) | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
+| `locksmith --fix` | Applies available auto-fixes and re-runs checks | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
+| `locksmith --fix-dockerfile` | Auto-fixes Dockerfile only (skips checks) | [Dockerfile](docs/dockerfile.md) |
+| `locksmith --fix-docker` | Alias for `--fix-dockerfile` | [Dockerfile](docs/dockerfile.md) |
+| `locksmith --outdated` | Outdated packages vs Renovate policy delays | [Outdated packages](docs/outdated.md) |
+| `locksmith --outdated --fix` | Auto-apply safe patch updates allowed by policy | [Outdated packages](docs/outdated.md) |
+| `locksmith --report json\|markdown` | Export results into a file in the project | — |
 | `locksmith --strict` | Exit `1` on warnings too (CI mode) | — |
 | `locksmith add <pkg>[@version]` | Inspect package security before installing via pnpm | [Safe add/update](docs/safe-add.md) |
 | `locksmith update <pkg>[@version]` | Inspect package security before updating via pnpm | [Safe add/update](docs/safe-add.md) |
@@ -75,42 +73,30 @@ bun run ./bin/cli.ts [path] [options]
 | Option | Description |
 |---|---|
 | `--force` | Skip confirmation on medium risk (never bypasses critical/malware) |
-| `--dry-run` | Run all security checks and show report without installing |
+| `--dry-run` | Run the analysis and show the report without installing/updating |
 
-### Quick reference
-
-```bash
-locksmith                            # security checks + Dockerfile warnings
-locksmith --fix                      # auto-fix all issues + prompt Dockerfile update
-locksmith --fix-dockerfile           # fix Dockerfile only
-locksmith --outdated                 # show outdated packages with policy status
-locksmith --outdated --fix           # auto-apply safe patches
-locksmith --strict                   # block on warnings (CI mode)
-locksmith . --report json            # export results as JSON
-
-locksmith add express                # inspect latest, then install
-locksmith add lodash@4.17.21        # inspect specific version, then install
-locksmith add express --dry-run      # security report only, no install
-locksmith add express --force        # skip medium-risk confirmation
-locksmith update react               # inspect new version before updating
-```
-
----
+## Outputs and exit codes
+- Exported reports:
+  - `--report json` → `security-report.json`
+  - `--report markdown` → `security-report.md`
+- Exit codes:
+  - `0`: no errors (and no warnings if `--strict`)
+  - `1`: any `error`, or any `warn` with `--strict`
 
 ## What gets checked
 
-### Node.js / Bun (12 checks)
+### Node.js / Bun
 pnpm version · `.npmrc` security rules · lockfile present · Renovate policy · `onlyBuiltDependencies` · `only-allow pnpm` · `packageManager` field · Node version pinned · `pnpm audit` · `.gitignore` patterns · secrets scan · security scripts
 
 → Full details: [docs/checks-node.md](docs/checks-node.md)
 
-### Python / Poetry (11 checks)
-Poetry installed · `pyproject.toml` present · `poetry.lock` present · Python version pinned · virtual env in-project · no `requirements.txt` · `pip audit` · `.gitignore` patterns · secrets scan · source pinned · dependency groups
+### Python / Poetry
+Poetry installed · `pyproject.toml` present · `poetry.lock` present · Python version pinned · `poetry audit` · `.gitignore` patterns · secrets scan · source pinned · dependency groups · Renovate policy
 
 → Full details: [docs/checks-python.md](docs/checks-python.md)
 
 ### Dockerfile (multi-stage aware)
-Base image version pinned · pnpm/corepack version pinned · `--frozen-lockfile` / `--ignore-scripts` flags · `.npmrc` copied before install · `pip install` replaced with `poetry install` · `--no-cache-dir` flag · config files copied
+Pinned versions · recommended flags · secure copy/order conventions · caching/security best practices
 
 → Full details: [docs/dockerfile.md](docs/dockerfile.md)
 
@@ -120,42 +106,9 @@ Compares installed versions against npm/PyPI registry, respects `renovate.json` 
 → Full details: [docs/outdated.md](docs/outdated.md)
 
 ### Safe add / update
-Two-layer check before install: lifecycle script inspection (always) + Socket.dev supply chain score (opt-in via `SOCKET_SECURITY_API_TOKEN`). Critical risk (malware) blocks unconditionally.
+Two-layer check before install/update: lifecycle script inspection (always) + Socket.dev supply chain score (opt-in via `SOCKET_SECURITY_API_TOKEN`). Critical risk (malware) blocks unconditionally.
 
 → Full details: [docs/safe-add.md](docs/safe-add.md)
-
----
-
-## Sample output
-
-```
-🔐 locksmith
-
-   Analizando: /path/to/my-project
-
-✓ Proyecto: my-project [node]
-
-─────────────────────────────────────────────────────────────────────────
-  Check                  Estado   Detalle
-─────────────────────────────────────────────────────────────────────────
-  ✓ pnpm version           OK       pnpm 10.25.0 instalado
-  ✓ .npmrc                 OK       5/5 reglas activas
-  ✓ pnpm-lock.yaml         OK       Lockfile presente (5.0 KB)
-  ✓ renovate.json          OK       Release delay: patch 3d · minor 7d · major 30d
-  ✓ onlyBuiltDependencies  OK       onlyBuiltDependencies: []
-  ✓ only-allow pnpm        OK       Forzado: solo pnpm puede instalar dependencias
-  ✓ packageManager         OK       Versión fijada: pnpm@10.25.0
-  ✓ node version           OK       Versión fijada en .nvmrc: 22.11.0
-  ✓ pnpm audit             OK       Sin vulnerabilidades conocidas
-  ✓ .gitignore             OK       Patrones de seguridad presentes
-  ✓ secrets scan           OK       Sin secrets detectados en el código fuente
-  ✓ scripts policy         OK       Scripts de seguridad presentes
-─────────────────────────────────────────────────────────────────────────
-
-  12 ok
-```
-
----
 
 ## CI/CD
 
@@ -163,10 +116,8 @@ Two-layer check before install: lifecycle script inspection (always) + Socket.de
 locksmith . --strict
 ```
 
-Exits `1` on any warning or error — blocks the merge.
-
+Example (GitHub Actions):
 ```yaml
-# GitHub Actions
 jobs:
   security:
     runs-on: ubuntu-latest
@@ -179,42 +130,21 @@ jobs:
         run: locksmith . --strict
 ```
 
----
-
 ## AI Integration (MCP Server)
 
 locksmith exposes all operations as MCP tools. Any MCP-compatible AI client can call them directly — no CLI needed.
 
-### Supported clients
-
-| Client | MCP auto-configured | Behavior rules |
-|---|---|---|
-| Claude Desktop + Claude Code | ✓ global | `~/.claude/CLAUDE.md` |
-| Cursor | ✓ global (`~/.cursor/mcp.json`) | `.cursor/rules/locksmith.md` per project |
-| Windsurf | ✓ global (`~/.codeium/windsurf/mcp_config.json`) | `.windsurf/rules/locksmith.md` per project |
-| Cline | ✓ global (VSCode extension storage) | `.clinerules/locksmith.md` per project |
-| Kiro (Amazon) | ✓ global (`~/.kiro/settings/mcp.json`) | `~/.kiro/steering/locksmith.md` global |
-| Trae (ByteDance) | manual (`.trae/mcp.json`) | `.trae/rules/locksmith.md` per project |
-| GitHub Copilot | no MCP support | `.github/copilot-instructions.md` per project |
-| Google Antigravity | in progress | `AGENTS.md` per project |
-
-For project-level rules files, copy `docs/ai-skill.md` to the path shown above.
-
 ### MCP tools
-
 | Tool | What it does |
 |---|---|
 | `locksmith_audit` | Full security audit |
-| `locksmith_fix` | Apply auto-fixes (requires user approval) |
+| `locksmith_fix` | Apply auto-fixes |
 | `locksmith_audit_dockerfile` | Analyze Dockerfile |
-| `locksmith_fix_dockerfile` | Fix Dockerfile (requires user approval) |
+| `locksmith_fix_dockerfile` | Fix Dockerfile |
 | `locksmith_check_outdated` | Outdated packages vs Renovate policy |
 | `locksmith_safe_add` | Inspect package before installing |
 
 → Full behavior rules and tool reference: [docs/ai-skill.md](docs/ai-skill.md)
 
----
-
 ## Development
-
 → [docs/development.md](docs/development.md)
