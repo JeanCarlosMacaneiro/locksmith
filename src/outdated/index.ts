@@ -1,4 +1,7 @@
 import { $ } from "bun";
+import { rmSync, existsSync } from "fs";
+import { join } from "path";
+import pc from "picocolors";
 import { buildOutdatedPackage, readRenovatePolicy } from "./classify";
 import { fetchNpmPublishDate, fetchPypiPublishDate } from "./fetch-dates";
 import { printOutdatedReport, printNoOutdated } from "./reporter";
@@ -69,7 +72,28 @@ async function applySafeUpdates(
 ): Promise<void> {
   const names = packages.map((p) => p.name);
   if (isNode) {
-    await $`pnpm update ${names}`.cwd(projectPath);
+    try {
+      await $`pnpm update ${names}`.cwd(projectPath);
+    } catch (e: any) {
+      const stdout = String(e.stdout ?? "");
+      if (stdout.includes("ERR_PNPM_UNEXPECTED_STORE")) {
+        const storeMatch = stdout.match(/store at "([^"]+)"/g);
+        const from = storeMatch?.[0]?.match(/"([^"]+)"/)?.[1] ?? "old store";
+        const to   = storeMatch?.[1]?.match(/"([^"]+)"/)?.[1] ?? "new store";
+        console.log(
+          pc.yellow("\n  ⚠ pnpm store version mismatch detected — migrating automatically.\n") +
+          pc.dim(`    from: ${from}\n`) +
+          pc.dim(`    to:   ${to}\n`)
+        );
+        const nm = join(projectPath, "node_modules");
+        if (existsSync(nm)) rmSync(nm, { recursive: true, force: true });
+        console.log(pc.dim("  Reinstalling dependencies...\n"));
+        await $`pnpm install --ignore-scripts`.cwd(projectPath).quiet();
+        await $`pnpm update ${names}`.cwd(projectPath);
+        return;
+      }
+      throw e;
+    }
   } else {
     for (const name of names) {
       await $`poetry update ${name} --no-interaction`.cwd(projectPath);

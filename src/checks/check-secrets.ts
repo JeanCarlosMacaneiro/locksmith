@@ -84,6 +84,11 @@ function* walkFiles(dir: string, depth = 0): Generator<string> {
   }
 }
 
+function isTestFile(relPath: string): boolean {
+  return /(?:^|\/)(?:tests?|__tests?__|specs?)\//i.test(relPath) ||
+         /\.(?:test|spec)\.[jt]sx?$/.test(relPath);
+}
+
 // ─── check ────────────────────────────────────────────────────────────────────
 
 interface Finding {
@@ -104,16 +109,18 @@ export async function checkSecrets(projectPath: string): Promise<CheckResult> {
       continue;
     }
 
+    const relPath = relative(projectPath, filePath);
+    const inTestFile = isTestFile(relPath);
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       for (const pattern of PATTERNS) {
         if (pattern.regex.test(line)) {
           findings.push({
-            file: relative(projectPath, filePath),
+            file: relPath,
             line: i + 1,
             patternName: pattern.name,
-            severity: pattern.severity,
+            severity: inTestFile ? "warn" : pattern.severity,
           });
           break; // one finding per line is enough
         }
@@ -139,6 +146,13 @@ export async function checkSecrets(projectPath: string): Promise<CheckResult> {
     return `  ${fileCol}  ${lineCol}  ${f.patternName}`;
   });
 
+  const testOnlyFindings = findings.every(f => f.severity === "warn");
+  const testNote = testOnlyFindings
+    ? ["⚠ All findings are in test files — treat as mock/fixture data, not real credentials."]
+    : findings.some(f => f.severity === "warn" && /(?:^|\/)(?:tests?|__tests?__|specs?)\//.test(f.file))
+      ? ["⚠ Some findings are in test files and may be mock data."]
+      : [];
+
   return {
     name: "secrets scan",
     status: hasErrors ? "error" : "warn",
@@ -149,6 +163,8 @@ export async function checkSecrets(projectPath: string): Promise<CheckResult> {
       "",
       ...locationLines,
       "",
+      ...testNote,
+      ...(testNote.length ? [""] : []),
       "Secrets must not exist in the repository — use environment variables.",
       "",
       "Recommended steps:",

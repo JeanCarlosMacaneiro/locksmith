@@ -71,9 +71,10 @@ function printActionPrompt(checks: CheckResult[]): void {
 
 function printCollapsedOk(checks: CheckResult[]): void {
   console.log(pc.dim(sectionHeader("ALL OK")));
-  const names = checks
-    .map(r => r.wasFixed ? `${r.name} ${pc.green("[fixed]")}` : r.name)
-    .join(pc.dim(" · "));
-  console.log(`  ${pc.green("✓")} ${names}  ${pc.dim(`(${checks.length} checks)`)}`);
+  for (const r of checks) {
+    const label = r.wasFixed ? `${r.name} ${pc.green("[fixed]")}` : r.name;
+    console.log(`  ${pc.green("✓")} ${label}`);
+  }
+  console.log(pc.dim(`  (${checks.length} checks)`));
   console.log();
 }

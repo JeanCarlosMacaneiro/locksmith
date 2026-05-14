@@ -22,30 +22,68 @@ function parseYarn(output: string): VulnCounts {
   return { critical: 0, high: 0, moderate: 0, low: 0 };
 }
 
-function toResult(name: string, v: VulnCounts): CheckResult {
+function toResult(name: string, v: VulnCounts, projectPath: string): CheckResult {
   const total = v.critical + v.high + v.moderate + v.low;
   if (total === 0) return { name, status: "ok", message: "No known vulnerabilities" };
+
+  const pm = name.split(" ")[0]!; // "pnpm" | "npm" | "yarn"
+
+  const fixFn = async () => {
+    const fixCmd = pm === "yarn"
+      ? $`yarn audit --fix`.cwd(projectPath)
+      : pm === "npm"
+        ? $`npm audit fix`.cwd(projectPath)
+        : $`pnpm audit --fix`.cwd(projectPath);
+    await fixCmd.quiet().catch(() => { /* partial fix is ok — re-run will show remaining */ });
+  };
+
   if (v.critical > 0 || v.high > 0) {
-    return { name, status: "error", message: `${v.critical} critical · ${v.high} high · ${v.moderate} moderate · ${v.low} low` };
+    return {
+      name,
+      status: "error",
+      message: `${v.critical} critical · ${v.high} high · ${v.moderate} moderate · ${v.low} low`,
+      fixable: true,
+      fix: fixFn,
+      hint: [
+        `Run \`locksmith . --fix\` to auto-upgrade vulnerable packages via \`${pm} audit --fix\``,
+        `Run \`locksmith . --fix --outdated\` to also update outdated packages in the same pass`,
+        "If auto-fix leaves remaining issues, update or replace each affected package manually:",
+        `  → ${pm} update <package>`,
+        "  → Check for a patched version and pin it in package.json",
+        "  → For critical packages with no fix, consider removing the dependency",
+        `  → Full details: ${pm} audit`,
+      ],
+    };
   }
-  return { name, status: "warn", message: `${v.moderate} moderate · ${v.low} low` };
+  return {
+    name,
+    status: "warn",
+    message: `${v.moderate} moderate · ${v.low} low`,
+    fixable: true,
+    fix: fixFn,
+    hint: [
+      `Run \`locksmith . --fix\` to apply available patches via \`${pm} audit --fix\``,
+      `Run \`locksmith . --fix --outdated\` to also update outdated packages in the same pass`,
+      `  → Full details: ${pm} audit`,
+    ],
+  };
 }
 
 export async function checkAudit(projectPath: string, type: ProjectType = "node"): Promise<CheckResult> {
   try {
     if (type === "yarn") {
       const output = await $`yarn audit --json`.cwd(projectPath).text().catch((e: { stdout?: string }) => e.stdout ?? "");
-      return toResult("yarn audit", parseYarn(output));
+      return toResult("yarn audit", parseYarn(output), projectPath);
     }
 
     if (type === "npm") {
       const output = await $`npm audit --json`.cwd(projectPath).text().catch((e: { stdout?: string }) => e.stdout ?? "{}");
-      return toResult("npm audit", parsePnpmNpm(output));
+      return toResult("npm audit", parsePnpmNpm(output), projectPath);
     }
 
     // pnpm — default for node, bun, electron
     const output = await $`pnpm audit --json`.cwd(projectPath).text().catch((e: { stdout?: string }) => e.stdout ?? "{}");
-    return toResult("pnpm audit", parsePnpmNpm(output));
+    return toResult("pnpm audit", parsePnpmNpm(output), projectPath);
   } catch {
     const pm = type === "yarn" ? "yarn" : type === "npm" ? "npm" : "pnpm";
     return { name: `${pm} audit`, status: "warn", message: `Could not run ${pm} audit (lockfile present?)` };
