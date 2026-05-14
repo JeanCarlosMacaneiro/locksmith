@@ -1,4 +1,4 @@
-import { buildMcpConfig } from "../src/mcp/installer";
+import { buildMcpConfig, buildZedConfig, buildContinueConfig } from "../src/mcp/installer";
 import {
   mkdirSync,
   existsSync,
@@ -16,6 +16,7 @@ export interface McpClient {
   win32Path?: string;
   skillPath?: string;
   skillMode?: "append-to-file" | "copy-file";
+  configFormat?: "standard" | "zed" | "continue";
   hint?: string;
 }
 
@@ -67,6 +68,37 @@ export const CLIENTS: McpClient[] = [
     skillPath: "${HOME}/.kiro/steering/locksmith.md",
     skillMode: "copy-file",
   },
+  {
+    id: "zed",
+    name: "Zed",
+    darwinPath: "${HOME}/.config/zed/settings.json",
+    linuxPath: "${HOME}/.config/zed/settings.json",
+    win32Path: "${APPDATA}\\Zed\\settings.json",
+    configFormat: "zed",
+  },
+  {
+    id: "continue",
+    name: "Continue.dev",
+    darwinPath: "${HOME}/.continue/config.json",
+    linuxPath: "${HOME}/.continue/config.json",
+    win32Path: "${APPDATA}\\.continue\\config.json",
+    configFormat: "continue",
+    hint: "Continue.dev: also enable the MCP feature flag in the extension settings",
+  },
+  {
+    id: "chatgpt",
+    name: "ChatGPT Desktop",
+    // No file-based MCP config — ChatGPT Desktop manages connectors via UI only
+    hint: "ChatGPT Desktop: add MCP server via Settings → Connectors → Add connector",
+  },
+  {
+    id: "codex",
+    name: "OpenAI Codex CLI",
+    darwinPath: "${HOME}/.codex/config.json",
+    linuxPath: "${HOME}/.codex/config.json",
+    win32Path: "${HOME}\\.codex\\config.json",
+    hint: "Codex CLI: run `codex mcp add locksmith` if available in your version",
+  },
 ];
 
 function resolveTemplate(template: string, env: PlatformEnv): string {
@@ -90,6 +122,32 @@ export function getConfigPath(
 
   if (!template) return null;
   return resolveTemplate(template, env);
+}
+
+export function isClientInstalled(
+  clientId: string,
+  platform: string,
+  env: PlatformEnv = process.env
+): boolean {
+  const configPath = getConfigPath(clientId, platform, env);
+  if (!configPath) return false;
+  return existsSync(dirname(configPath));
+}
+
+export function detectInstalledClients(
+  platform: string,
+  env: PlatformEnv = process.env
+): { detected: McpClient[]; undetected: McpClient[] } {
+  const detected: McpClient[] = [];
+  const undetected: McpClient[] = [];
+  for (const client of CLIENTS) {
+    if (isClientInstalled(client.id, platform, env)) {
+      detected.push(client);
+    } else {
+      undetected.push(client);
+    }
+  }
+  return { detected, undetected };
 }
 
 export function isInteractive(): boolean {
@@ -212,7 +270,14 @@ export async function registerClient(
     }
   }
 
-  const config = buildMcpConfig(existingConfig, mcpEntryPath);
+  let config: Record<string, unknown>;
+  if (client.configFormat === "zed") {
+    config = buildZedConfig(existingConfig, mcpEntryPath);
+  } else if (client.configFormat === "continue") {
+    config = buildContinueConfig(existingConfig, mcpEntryPath);
+  } else {
+    config = buildMcpConfig(existingConfig, mcpEntryPath);
+  }
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: MCP configured\n`);
 
@@ -252,6 +317,7 @@ export interface MainOverrides {
   scriptDir?: string;
   platform?: string;
   env?: PlatformEnv;
+  skipDetection?: boolean;
 }
 
 export async function main(overrides: MainOverrides = {}): Promise<void> {
@@ -267,6 +333,28 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
       "  \x1b[36m→\x1b[0m Non-interactive mode — skipping AI integration\n"
     );
     return;
+  }
+
+  // Auto-detect installed clients unless overridden (e.g. for testing)
+  if (overrides.selectedIndices === undefined && !overrides.skipDetection) {
+    const { detected, undetected } = detectInstalledClients(platform, env);
+
+    if (detected.length > 0) {
+      process.stdout.write(`  \x1b[2mDetected ${detected.length} AI client${detected.length !== 1 ? "s" : ""} — configuring automatically\x1b[0m\n\n`);
+      for (const client of detected) {
+        await registerClient(client, mcpEntry, scriptDir, platform, env);
+      }
+      if (undetected.length > 0) {
+        const names = undetected.map((c) => c.name).join(", ");
+        process.stdout.write(`\n  \x1b[2m→ Not detected: ${names}\x1b[0m\n`);
+        process.stdout.write(`  \x1b[2m  To add manually: locksmith (select from list)\x1b[0m\n`);
+      }
+      process.stdout.write(
+        "\n  \x1b[2m→ Run `locksmith <path> --install-mcp` in each project to install per-project skill rules\x1b[0m\n"
+      );
+      return;
+    }
+    // No clients detected — fall through to manual multiselect
   }
 
   const answer =

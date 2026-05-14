@@ -10,7 +10,7 @@ import type { RunOptions } from "../src/types";
 
 function parseInstallMcpClients(raw: unknown): InstallProjectMcpTarget[] | null {
   if (typeof raw !== "string") return null;
-  const allowed: InstallProjectMcpTarget[] = ["trae", "cursor", "windsurf", "cline", "copilot", "agents"];
+  const allowed: InstallProjectMcpTarget[] = ["trae", "cursor", "windsurf", "cline", "copilot", "agents", "claude"];
   const set = new Set<InstallProjectMcpTarget>();
   for (const part of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
     if ((allowed as string[]).includes(part)) set.add(part as InstallProjectMcpTarget);
@@ -68,7 +68,7 @@ yargs(hideBin(process.argv))
         })
         .option("install-mcp-clients", {
           type: "string",
-          description: "CSV list for non-interactive mode: trae,cursor,windsurf,cline,copilot,agents",
+          description: "CSV list for non-interactive mode: trae,cursor,windsurf,cline,copilot,agents,claude",
         }),
     async (argv) => {
       if (argv["install-mcp"] as boolean) {
@@ -77,13 +77,14 @@ yargs(hideBin(process.argv))
           (process.stdin.isTTY
             ? (await (await import("../bin/register-mcp")).multiselect([
                 "Trae (MCP + rules)",
+                "Claude Code (MCP + rules)",
                 "Cursor (rules)",
                 "Windsurf (rules)",
                 "Cline (rules)",
                 "GitHub Copilot (rules)",
                 "AGENTS.md (rules)",
-              ])).map((i) => ["trae", "cursor", "windsurf", "cline", "copilot", "agents"][i] as InstallProjectMcpTarget)
-            : ["trae", "cursor", "windsurf", "cline", "copilot", "agents"]);
+              ])).map((i) => ["trae", "claude", "cursor", "windsurf", "cline", "copilot", "agents"][i] as InstallProjectMcpTarget)
+            : ["trae", "claude", "cursor", "windsurf", "cline", "copilot", "agents"]);
 
         if (targets.length === 0) {
           console.log("⚠ No clients selected — skipping configuration");

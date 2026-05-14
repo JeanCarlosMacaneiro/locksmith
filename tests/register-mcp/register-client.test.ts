@@ -150,4 +150,73 @@ describe("registerClient — AI client registration", () => {
     const configPath = join(tmpDir, ".codeium/windsurf/mcp_config.json");
     expect(existsSync(configPath)).toBe(true);
   });
+
+  it("configFormat 'zed': writes context_servers format", async () => {
+    const client = CLIENTS.find((c) => c.id === "zed")!;
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", { HOME: tmpDir });
+
+    const configPath = join(tmpDir, ".config/zed/settings.json");
+    expect(existsSync(configPath)).toBe(true);
+
+    const config = JSON.parse(readFileSync(configPath, "utf-8")) as any;
+    expect(config.context_servers?.locksmith?.command?.path).toBe("bun");
+    expect(config.context_servers?.locksmith?.command?.args[0]).toBe("/fake/mcp.ts");
+    expect(config.mcpServers).toBeUndefined();
+  });
+
+  it("configFormat 'zed': idempotent — does not duplicate entry", async () => {
+    const client = CLIENTS.find((c) => c.id === "zed")!;
+    const env = { HOME: tmpDir };
+
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", env);
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", env);
+
+    const config = JSON.parse(readFileSync(join(tmpDir, ".config/zed/settings.json"), "utf-8")) as any;
+    const keys = Object.keys(config.context_servers ?? {});
+    expect(keys.filter((k) => k === "locksmith").length).toBe(1);
+  });
+
+  it("configFormat 'zed': preserves existing context_servers", async () => {
+    const configDir = join(tmpDir, ".config/zed");
+    mkdirSync(configDir, { recursive: true });
+    const configPath = join(configDir, "settings.json");
+    writeFileSync(configPath, JSON.stringify({
+      context_servers: { other: { command: { path: "node", args: [] } } },
+      theme: "dark",
+    }, null, 2));
+
+    const client = CLIENTS.find((c) => c.id === "zed")!;
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", { HOME: tmpDir });
+
+    const config = JSON.parse(readFileSync(configPath, "utf-8")) as any;
+    expect(config.theme).toBe("dark");
+    expect(config.context_servers?.other).toBeDefined();
+    expect(config.context_servers?.locksmith?.command?.path).toBe("bun");
+  });
+
+  it("configFormat 'continue': writes array mcpServers format", async () => {
+    const client = CLIENTS.find((c) => c.id === "continue")!;
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", { HOME: tmpDir });
+
+    const configPath = join(tmpDir, ".continue/config.json");
+    expect(existsSync(configPath)).toBe(true);
+
+    const config = JSON.parse(readFileSync(configPath, "utf-8")) as any;
+    expect(Array.isArray(config.mcpServers)).toBe(true);
+    const entry = config.mcpServers.find((s: any) => s.name === "locksmith");
+    expect(entry?.command).toBe("bun");
+    expect(entry?.args[0]).toBe("/fake/mcp.ts");
+  });
+
+  it("configFormat 'continue': idempotent — does not duplicate entry", async () => {
+    const client = CLIENTS.find((c) => c.id === "continue")!;
+    const env = { HOME: tmpDir };
+
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", env);
+    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", env);
+
+    const config = JSON.parse(readFileSync(join(tmpDir, ".continue/config.json"), "utf-8")) as any;
+    const count = (config.mcpServers as any[]).filter((s: any) => s.name === "locksmith").length;
+    expect(count).toBe(1);
+  });
 });

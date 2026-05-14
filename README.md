@@ -37,8 +37,8 @@ cd locksmith
 The installer runs 5 steps: Bun · pnpm · dependencies · `locksmith` command · AI client (MCP) configuration.
 
 **Two-tier MCP setup:**
-- **Global** (done by installer): registers the MCP server for Claude Desktop + Claude Code. To add Cursor, Windsurf, Cline, or Kiro run: `bun bin/register-mcp.ts`
-- **Per-project** (run in each project): copies skill rules for all IDE clients — `locksmith <path> --install-mcp`
+- **Global** (done by installer): auto-detects installed AI clients and registers the MCP server for each one. To reconfigure or add more: `bun bin/register-mcp.ts`
+- **Per-project** (run in each project): creates MCP config + copies skill rules — `locksmith <path> --install-mcp`
 
 **Run without installing**
 ```bash
@@ -54,7 +54,7 @@ locksmith --fix-dockerfile         # auto-fix Dockerfile only (skips checks)
 locksmith --outdated               # outdated packages vs Renovate policy
 locksmith --outdated --fix         # auto-apply safe patches allowed by policy
 locksmith --install-mcp            # configure MCP + rules for IDE clients (per project)
-locksmith --install-mcp --install-mcp-clients cursor,windsurf  # non-interactive subset
+locksmith --install-mcp --install-mcp-clients claude,cursor,windsurf  # non-interactive subset
 locksmith . --report json          # exports security-report.json in the project
 locksmith . --report markdown      # exports security-report.md in the project
 locksmith . --strict               # exit 1 on warnings too (CI mode)
@@ -143,25 +143,53 @@ jobs:
 
 locksmith exposes all operations as MCP tools. Any MCP-compatible AI client can call them directly — no CLI needed.
 
+### Global MCP registration
+
+Run once after install. Auto-detects which AI clients are installed on the system and configures each one automatically:
+
+```bash
+bun bin/register-mcp.ts
+```
+
+| Client | Config written | Notes |
+|---|---|---|
+| Claude Desktop + Claude Code | `~/Library/Application Support/Claude/claude_desktop_config.json` | + rules appended to `~/.claude/CLAUDE.md` |
+| Cursor | `~/.cursor/mcp.json` | — |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | — |
+| Cline | VS Code extension settings | — |
+| Kiro (Amazon) | `~/.kiro/settings/mcp.json` | + skill copied to `~/.kiro/steering/locksmith.md` |
+| Zed | `~/.config/zed/settings.json` | `context_servers` format |
+| Continue.dev | `~/.continue/config.json` | array `mcpServers` format |
+| OpenAI Codex CLI | `~/.codex/config.json` | — |
+| ChatGPT Desktop | — | UI only: Settings → Connectors → Add connector |
+
+If no client is detected, falls back to an interactive multi-select.
+
 ### Per-project IDE setup
 
 Run `locksmith --install-mcp` in a project to create/update:
 
-- `.trae/mcp.json` (adds `mcpServers.locksmith`)
-- `.trae/rules/locksmith.md`
-- `.cursor/rules/locksmith.md`
-- `.windsurf/rules/locksmith.md`
-- `.clinerules/locksmith.md`
-- `.github/copilot-instructions.md`
-- `AGENTS.md`
+| File | Client | Type |
+|---|---|---|
+| `.mcp.json` | Claude Code | MCP server config |
+| `CLAUDE.md` | Claude Code | Rules (appended) |
+| `.trae/mcp.json` | Trae | MCP server config |
+| `.trae/rules/locksmith.md` | Trae | Rules |
+| `.cursor/rules/locksmith.md` | Cursor | Rules |
+| `.windsurf/rules/locksmith.md` | Windsurf | Rules |
+| `.clinerules/locksmith.md` | Cline | Rules |
+| `.github/copilot-instructions.md` | GitHub Copilot | Rules |
+| `AGENTS.md` | Google Jules / OpenAI Codex | Rules |
 
-In interactive terminals, `--install-mcp` will prompt a multi-select.
+In interactive terminals, `--install-mcp` prompts a multi-select to choose which clients to configure.
 
-For non-interactive environments (CI/scripts), use:
+For non-interactive environments (CI/scripts):
 
-`locksmith --install-mcp --install-mcp-clients trae,cursor,windsurf,cline,copilot,agents`
+```bash
+locksmith --install-mcp --install-mcp-clients trae,claude,cursor,windsurf,cline,copilot,agents
+```
 
-> **Note:** `trae` installs a per-project `mcp.json`. `copilot` and `agents` install rules-only (no MCP server config). Cursor, Windsurf, and Cline also need global MCP registration via `bun bin/register-mcp.ts`.
+> **Note:** `trae` and `claude` install a per-project MCP server config. `copilot` and `agents` install rules-only. `cursor`, `windsurf`, and `cline` also benefit from global registration via `bun bin/register-mcp.ts`.
 
 ### MCP tools
 | Tool | What it does |

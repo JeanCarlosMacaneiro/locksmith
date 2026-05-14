@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { main } from "../../bin/register-mcp";
@@ -102,6 +102,51 @@ describe("Integration — main()", () => {
 
     expect(existsSync(join(tmpDir, ".cursor/mcp.json"))).toBe(true);
     expect(existsSync(join(tmpDir, ".codeium/windsurf/mcp_config.json"))).toBe(true);
+  });
+
+  it("auto-detection: configures detected clients, skips undetected", async () => {
+    // Simulate cursor installed (dir exists), nothing else
+    mkdirSync(join(tmpDir, ".cursor"), { recursive: true });
+
+    await main({
+      interactive: true,
+      scriptDir: ROOT,
+      platform: "linux",
+      env: { HOME: tmpDir },
+    });
+
+    expect(existsSync(join(tmpDir, ".cursor/mcp.json"))).toBe(true);
+    expect(existsSync(join(tmpDir, ".codeium/windsurf/mcp_config.json"))).toBe(false);
+    expect(existsSync(join(tmpDir, ".kiro/settings/mcp.json"))).toBe(false);
+  });
+
+  it("auto-detection: configures multiple detected clients", async () => {
+    mkdirSync(join(tmpDir, ".cursor"), { recursive: true });
+    mkdirSync(join(tmpDir, ".codeium/windsurf"), { recursive: true });
+
+    await main({
+      interactive: true,
+      scriptDir: ROOT,
+      platform: "linux",
+      env: { HOME: tmpDir },
+    });
+
+    expect(existsSync(join(tmpDir, ".cursor/mcp.json"))).toBe(true);
+    expect(existsSync(join(tmpDir, ".codeium/windsurf/mcp_config.json"))).toBe(true);
+  });
+
+  it("auto-detection: falls through to multiselect when no clients detected", async () => {
+    // Empty tmpDir — no client dirs → would fall to multiselect
+    // Use selectedIndices=[] to simulate user cancelling multiselect
+    await main({
+      interactive: true,
+      selectedIndices: [],
+      scriptDir: ROOT,
+      platform: "linux",
+      env: { HOME: tmpDir },
+    });
+
+    expect(existsSync(join(tmpDir, ".cursor"))).toBe(false);
   });
 
   it("CI=true via subprocess → exit 0 sin archivos creados", async () => {

@@ -14,7 +14,8 @@ export type InstallProjectMcpTarget =
   | "windsurf"
   | "cline"
   | "copilot"
-  | "agents";
+  | "agents"
+  | "claude";
 
 function safeReadJson(path: string): Record<string, unknown> | null {
   if (!existsSync(path)) return null;
@@ -49,7 +50,7 @@ export async function installProjectMcp(opts: InstallProjectMcpOptions): Promise
   const created: string[] = [];
 
   const targets = new Set<InstallProjectMcpTarget>(
-    (opts.targets ?? ["trae", "cursor", "windsurf", "cline", "copilot", "agents"]) satisfies InstallProjectMcpTarget[]
+    (opts.targets ?? ["trae", "cursor", "windsurf", "cline", "copilot", "agents", "claude"]) satisfies InstallProjectMcpTarget[]
   );
 
   if (targets.size === 0) return { created };
@@ -92,6 +93,25 @@ export async function installProjectMcp(opts: InstallProjectMcpOptions): Promise
     // rules only — AGENTS.md for Google Jules/Antigravity; MCP support experimental
     const dest = join(opts.projectPath, "AGENTS.md");
     if (copyIfMissing(aiSkillSrc, dest)) created.push(dest);
+  }
+
+  if (targets.has("claude")) {
+    // Claude Code per-project: .mcp.json (MCP server) + CLAUDE.md (rules)
+    const claudeMcpPath = join(opts.projectPath, ".mcp.json");
+    const hadClaudeMcp = existsSync(claudeMcpPath);
+    const existingClaude = safeReadJson(claudeMcpPath);
+    const claudeConfig = buildMcpConfig(existingClaude, mcpEntry);
+    ensureDir(dirname(claudeMcpPath));
+    writeFileSync(claudeMcpPath, JSON.stringify(claudeConfig, null, 2));
+    if (!hadClaudeMcp) created.push(claudeMcpPath);
+
+    const claudeMdPath = join(opts.projectPath, "CLAUDE.md");
+    const skillContent = readFileSync(aiSkillSrc, "utf-8");
+    const existingMd = existsSync(claudeMdPath) ? readFileSync(claudeMdPath, "utf-8") : "";
+    if (!existingMd.includes("locksmith — AI rules")) {
+      writeFileSync(claudeMdPath, existingMd + "\n---\n# locksmith — AI rules\n" + skillContent);
+      created.push(claudeMdPath);
+    }
   }
 
   return { created };

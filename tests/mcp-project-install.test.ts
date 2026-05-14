@@ -27,6 +27,8 @@ describe("installProjectMcp", () => {
     expect(existsSync(join(projectDir, ".clinerules/locksmith.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".github/copilot-instructions.md"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".mcp.json"))).toBe(true);
+    expect(existsSync(join(projectDir, "CLAUDE.md"))).toBe(true);
 
     expect(result.created.length).toBeGreaterThan(0);
 
@@ -96,5 +98,60 @@ describe("installProjectMcp", () => {
 
     const trae = JSON.parse(readFileSync(traeMcp, "utf-8")) as any;
     expect(trae.mcpServers.locksmith.command).toBe("bun");
+  });
+
+  it("claude target: creates .mcp.json and appends to CLAUDE.md", async () => {
+    const result = await installProjectMcp({
+      projectPath: projectDir,
+      locksmithRoot: ROOT,
+      targets: ["claude"],
+    });
+
+    const mcpPath = join(projectDir, ".mcp.json");
+    const claudeMdPath = join(projectDir, "CLAUDE.md");
+
+    expect(existsSync(mcpPath)).toBe(true);
+    expect(existsSync(claudeMdPath)).toBe(true);
+
+    const mcp = JSON.parse(readFileSync(mcpPath, "utf-8")) as any;
+    expect(mcp.mcpServers.locksmith.command).toBe("bun");
+    expect(mcp.mcpServers.locksmith.args[0]).toBe(join(ROOT, "bin", "mcp.ts"));
+
+    const md = readFileSync(claudeMdPath, "utf-8");
+    expect(md).toContain("locksmith — AI rules");
+
+    expect(result.created).toContain(mcpPath);
+    expect(result.created).toContain(claudeMdPath);
+  });
+
+  it("claude target: preserves existing CLAUDE.md content", async () => {
+    const claudeMdPath = join(projectDir, "CLAUDE.md");
+    writeFileSync(claudeMdPath, "# My project rules\n");
+
+    await installProjectMcp({ projectPath: projectDir, locksmithRoot: ROOT, targets: ["claude"] });
+
+    const content = readFileSync(claudeMdPath, "utf-8");
+    expect(content).toContain("# My project rules");
+    expect(content).toContain("locksmith — AI rules");
+  });
+
+  it("claude target: idempotent — does not duplicate CLAUDE.md content", async () => {
+    await installProjectMcp({ projectPath: projectDir, locksmithRoot: ROOT, targets: ["claude"] });
+    await installProjectMcp({ projectPath: projectDir, locksmithRoot: ROOT, targets: ["claude"] });
+
+    const content = readFileSync(join(projectDir, "CLAUDE.md"), "utf-8");
+    const count = (content.match(/locksmith — AI rules/g) ?? []).length;
+    expect(count).toBe(1);
+  });
+
+  it("claude target: merges existing .mcp.json mcpServers", async () => {
+    const mcpPath = join(projectDir, ".mcp.json");
+    writeFileSync(mcpPath, JSON.stringify({ mcpServers: { other: { command: "node", args: [] } } }, null, 2));
+
+    await installProjectMcp({ projectPath: projectDir, locksmithRoot: ROOT, targets: ["claude"] });
+
+    const mcp = JSON.parse(readFileSync(mcpPath, "utf-8")) as any;
+    expect(mcp.mcpServers.other.command).toBe("node");
+    expect(mcp.mcpServers.locksmith.command).toBe("bun");
   });
 });

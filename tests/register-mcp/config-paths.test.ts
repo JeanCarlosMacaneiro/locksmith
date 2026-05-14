@@ -1,5 +1,8 @@
-import { describe, it, expect } from "bun:test";
-import { getConfigPath, CLIENTS } from "../../bin/register-mcp";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { mkdtempSync, rmSync, mkdirSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import { getConfigPath, isClientInstalled, detectInstalledClients, CLIENTS } from "../../bin/register-mcp";
 import fc from "fast-check";
 
 const ENV = {
@@ -7,6 +10,16 @@ const ENV = {
   APPDATA: "C:\\Users\\testuser\\AppData\\Roaming",
   USERPROFILE: "C:\\Users\\testuser",
 };
+
+let tmpDir: string;
+
+beforeEach(() => {
+  tmpDir = mkdtempSync(join(tmpdir(), "locksmith-cp-"));
+});
+
+afterEach(() => {
+  rmSync(tmpDir, { recursive: true, force: true });
+});
 
 describe("getConfigPath — config paths por cliente y plataforma", () => {
   it("claude-desktop darwin → Library/Application Support/Claude", () => {
@@ -77,6 +90,57 @@ describe("getConfigPath — config paths por cliente y plataforma", () => {
 
   it("cliente desconocido → null", () => {
     expect(getConfigPath("unknown-client-xyz", "darwin", ENV)).toBeNull();
+  });
+
+  describe("isClientInstalled", () => {
+    it("returns false when config parent dir does not exist", () => {
+      expect(isClientInstalled("cursor", "linux", { HOME: tmpDir })).toBe(false);
+    });
+
+    it("returns true when config parent dir exists", () => {
+      mkdirSync(join(tmpDir, ".cursor"), { recursive: true });
+      expect(isClientInstalled("cursor", "linux", { HOME: tmpDir })).toBe(true);
+    });
+
+    it("returns false for unknown client id", () => {
+      expect(isClientInstalled("nonexistent", "linux", { HOME: tmpDir })).toBe(false);
+    });
+
+    it("returns false when client has no path for platform", () => {
+      // chatgpt is hint-only — no config paths on any platform
+      expect(isClientInstalled("chatgpt", "darwin", { HOME: tmpDir })).toBe(false);
+      expect(isClientInstalled("chatgpt", "linux", { HOME: tmpDir })).toBe(false);
+    });
+  });
+
+  describe("detectInstalledClients", () => {
+    it("returns empty detected when no client dirs exist", () => {
+      const { detected, undetected } = detectInstalledClients("linux", { HOME: tmpDir });
+      expect(detected.length).toBe(0);
+      expect(undetected.length).toBe(CLIENTS.length);
+    });
+
+    it("detects cursor when ~/.cursor exists", () => {
+      mkdirSync(join(tmpDir, ".cursor"), { recursive: true });
+      const { detected } = detectInstalledClients("linux", { HOME: tmpDir });
+      expect(detected.some((c) => c.id === "cursor")).toBe(true);
+    });
+
+    it("detects multiple clients", () => {
+      mkdirSync(join(tmpDir, ".cursor"), { recursive: true });
+      mkdirSync(join(tmpDir, ".codeium/windsurf"), { recursive: true });
+      const { detected, undetected } = detectInstalledClients("linux", { HOME: tmpDir });
+      expect(detected.some((c) => c.id === "cursor")).toBe(true);
+      expect(detected.some((c) => c.id === "windsurf")).toBe(true);
+      expect(undetected.some((c) => c.id === "cursor")).toBe(false);
+      expect(undetected.some((c) => c.id === "windsurf")).toBe(false);
+    });
+
+    it("detected + undetected = all CLIENTS", () => {
+      mkdirSync(join(tmpDir, ".cursor"), { recursive: true });
+      const { detected, undetected } = detectInstalledClients("linux", { HOME: tmpDir });
+      expect(detected.length + undetected.length).toBe(CLIENTS.length);
+    });
   });
 
   describe("Property: clients con paths definidos retornan strings no vacíos", () => {
