@@ -97,8 +97,8 @@ ok "Symlink created: $LINK → $TARGET"
 
 # ─── step 5: configure AI clients ────────────────────────────────────────────
 step "5/5  Configuring AI clients"
-bun "$SCRIPT_DIR/bin/register-mcp.ts" --clients claude-desktop
-info "To add other clients (Cursor, Windsurf, Cline, Kiro): ${BOLD}bun $SCRIPT_DIR/bin/register-mcp.ts${RESET}"
+"$LINK" register-mcp
+info "To reconfigure or add more clients: ${BOLD}locksmith register-mcp${RESET}"
 
 # ─── PATH ─────────────────────────────────────────────────────────────────────
 

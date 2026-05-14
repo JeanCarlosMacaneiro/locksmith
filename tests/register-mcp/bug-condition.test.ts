@@ -8,14 +8,18 @@ describe("Bug Condition — installer-mcp-multiselect", () => {
   it("isBugCondition_PS1: install.ps1 no debe hardcodear claude_desktop_config.json sin multiselect", () => {
     const ps1 = readFileSync(join(ROOT, "install.ps1"), "utf-8");
     expect(ps1).not.toContain("claude_desktop_config.json");
-    expect(ps1).toContain("register-mcp.ts");
+    // must invoke via locksmith CLI command, not hardcoded path to register-mcp.ts
+    expect(ps1).toContain("register-mcp");
+    expect(ps1).not.toMatch(/bun\s+["']?.*register-mcp\.ts/);
   });
 
   it("isBugCondition_SH: install.sh no debe contener lógica multiselect bash propia", () => {
     const sh = readFileSync(join(ROOT, "install.sh"), "utf-8");
     expect(sh).not.toContain("_MS_OPTIONS");
     expect(sh).not.toMatch(/^multiselect\s*\(/m);
-    expect(sh).toContain("register-mcp.ts");
+    // must invoke via locksmith CLI command, not hardcoded path to register-mcp.ts
+    expect(sh).toContain("register-mcp");
+    expect(sh).not.toMatch(/bun\s+["']?\$SCRIPT_DIR.*register-mcp\.ts/);
   });
 
   it("isBugCondition_Duplication: _inject_mcp_entry no debe existir en install.sh", () => {

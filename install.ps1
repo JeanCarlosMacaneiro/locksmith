@@ -93,8 +93,8 @@ ok "Wrapper created: $WRAPPER"
 
 # ─── step 5: configure AI clients ────────────────────────────────────────────
 step "5/5  Configuring AI clients"
-bun "$SCRIPT_DIR\bin\register-mcp.ts" --clients claude-desktop
-info "To add other clients (Cursor, Windsurf, Cline, Kiro): bun $SCRIPT_DIR\bin\register-mcp.ts"
+& $WRAPPER register-mcp
+info "To reconfigure or add more clients: locksmith register-mcp"
 
 # ─── PATH ─────────────────────────────────────────────────────────────────────
 $NEEDS_RELOAD = $false

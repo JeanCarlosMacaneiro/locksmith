@@ -119,6 +119,15 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
+    "register-mcp",
+    "Configure MCP server for installed AI clients (global setup)",
+    (y) => y,
+    async () => {
+      const { main } = await import("../bin/register-mcp");
+      await main();
+    }
+  )
+  .command(
     "add <package>",
     "Audit and install a package with pnpm",
     (y) =>
