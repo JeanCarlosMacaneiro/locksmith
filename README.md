@@ -1,21 +1,23 @@
 # locksmith
 
-CLI and MCP server to audit and enforce security policies for **Node.js/Bun (pnpm)** and **Python (Poetry)** projects. It auto-detects the project type, runs checks in parallel, and can apply safe auto-fixes.
+CLI and MCP server to audit and enforce security policies for **Node.js · Bun · Electron · Python** projects. Auto-detects the project type, runs checks in parallel, and can apply safe auto-fixes.
 
 ## What it does
-- Audits project security configuration and practices (Node/Bun or Python)
+- Audits security configuration and practices (Node/Bun/Electron or Python)
+- Detects npm/yarn projects and proposes migration to pnpm
 - Applies auto-fixes when available (`--fix`)
-- Analyzes and fixes Dockerfiles (multi-stage aware) (`--fix-dockerfile`, alias `--fix-docker`)
+- Analyzes and fixes Dockerfiles — multi-stage aware (`--fix-dockerfile`)
 - Checks outdated packages against Renovate policy (`--outdated`)
-- Installs MCP integration per project for IDE clients (`--install-mcp`)
-- “Safe add/update”: inspects packages before installing/updating via pnpm (`add`, `update`)
-- Exposes operations as MCP tools for AI clients
+- "Safe add/update": inspects packages before installing/updating (`add`, `update`)
+- Configures MCP integration for AI clients — global and per-project
+- Exposes all operations as MCP tools for AI clients
 
 ## Requirements
 
 | Ecosystem | Requirement |
 |---|---|
 | Node.js / Bun | [Bun](https://bun.sh) `>= 1.0` · [pnpm](https://pnpm.io) `>= 11.0` |
+| Electron | Bun `>= 1.0` · pnpm `>= 11.0` |
 | Python | [Python](https://python.org) `>= 3.12` · [Poetry](https://python-poetry.org) `>= 1.8` |
 
 ## Installation
@@ -36,10 +38,6 @@ cd locksmith
 
 The installer runs 5 steps: Bun · pnpm · dependencies · `locksmith` command · AI client (MCP) configuration.
 
-**Two-tier MCP setup:**
-- **Global** (done by installer): auto-detects installed AI clients and registers the MCP server for each one. To reconfigure or add more: `bun bin/register-mcp.ts`
-- **Per-project** (run in each project): creates MCP config + copies skill rules — `locksmith <path> --install-mcp`
-
 **Run without installing**
 ```bash
 bun run ./bin/cli.ts [path] [options]
@@ -48,76 +46,84 @@ bun run ./bin/cli.ts [path] [options]
 ## Quick start
 
 ```bash
-locksmith                          # audit + Dockerfile warnings
+locksmith                          # audit current project
 locksmith --fix                    # auto-fix + re-check + Dockerfile prompt
-locksmith --fix-dockerfile         # auto-fix Dockerfile only (skips checks)
+locksmith --fix-dockerfile         # fix Dockerfile only
 locksmith --outdated               # outdated packages vs Renovate policy
-locksmith --outdated --fix         # auto-apply safe patches allowed by policy
-locksmith --install-mcp            # configure MCP + rules for IDE clients (per project)
-locksmith --install-mcp --install-mcp-clients claude,cursor,windsurf  # non-interactive subset
-locksmith . --report json          # exports security-report.json in the project
-locksmith . --report markdown      # exports security-report.md in the project
-locksmith . --strict               # exit 1 on warnings too (CI mode)
+locksmith --outdated --fix         # auto-apply safe patch updates
+locksmith add <pkg>                # inspect package before installing
+locksmith register-mcp             # configure MCP for installed AI clients
+locksmith --install-mcp            # per-project MCP + rules for IDE clients
+locksmith . --report json          # export security-report.json
+locksmith . --strict               # exit 1 on warnings (CI mode)
 ```
 
 ## Command reference
 
 | Command | What it does | Docs |
 |---|---|---|
-| `locksmith [path]` | Runs the security audit (auto-detects Node/Bun/Python) | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
-| `locksmith --fix` | Applies available auto-fixes and re-runs checks | [Node.js checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
-| `locksmith --fix-dockerfile` | Auto-fixes Dockerfile only (skips checks) | [Dockerfile](docs/dockerfile.md) |
+| `locksmith [path]` | Security audit — auto-detects Node/Bun/Electron/Python | [Node checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
+| `locksmith --fix` | Apply auto-fixes and re-run checks | [Node checks](docs/checks-node.md) · [Python checks](docs/checks-python.md) |
+| `locksmith --fix-dockerfile` | Auto-fix Dockerfile only | [Dockerfile](docs/dockerfile.md) |
 | `locksmith --fix-docker` | Alias for `--fix-dockerfile` | [Dockerfile](docs/dockerfile.md) |
-| `locksmith --outdated` | Outdated packages vs Renovate policy delays | [Outdated packages](docs/outdated.md) |
-| `locksmith --outdated --fix` | Auto-apply safe patch updates allowed by policy | [Outdated packages](docs/outdated.md) |
-| `locksmith --install-mcp` | Installs per-project MCP + rules for IDE clients | — |
+| `locksmith --outdated` | Outdated packages vs Renovate policy | [Outdated](docs/outdated.md) |
+| `locksmith --outdated --fix` | Auto-apply safe patch updates | [Outdated](docs/outdated.md) |
+| `locksmith add <pkg>[@ver]` | Inspect package security before installing | [Safe add/update](docs/safe-add.md) |
+| `locksmith update <pkg>[@ver]` | Inspect package security before updating | [Safe add/update](docs/safe-add.md) |
+| `locksmith register-mcp` | Configure MCP server for installed AI clients (global) | — |
+| `locksmith --install-mcp` | Per-project MCP config + rules for IDE clients | — |
 | `locksmith --install-mcp --install-mcp-clients <csv>` | Non-interactive client selection | — |
-| `locksmith --report json\|markdown` | Export results into a file in the project | — |
+| `locksmith --report json\|markdown` | Export results to file in the project | — |
 | `locksmith --strict` | Exit `1` on warnings too (CI mode) | — |
-| `locksmith add <pkg>[@version]` | Inspect package security before installing via pnpm | [Safe add/update](docs/safe-add.md) |
-| `locksmith update <pkg>[@version]` | Inspect package security before updating via pnpm | [Safe add/update](docs/safe-add.md) |
 
 ### Options for `add` / `update`
 
 | Option | Description |
 |---|---|
 | `--force` | Skip confirmation on medium risk (never bypasses critical/malware) |
-| `--dry-run` | Run the analysis and show the report without installing/updating |
+| `--dry-run` | Analyze without installing/updating |
 
 ## Outputs and exit codes
-- Exported reports:
-  - `--report json` → `security-report.json`
-  - `--report markdown` → `security-report.md`
-- Exit codes:
-  - `0`: no errors (and no warnings if `--strict`)
-  - `1`: any `error`, or any `warn` with `--strict`
+
+- `--report json` → `security-report.json`
+- `--report markdown` → `security-report.md`
+- Exit `0`: no errors (no warnings if `--strict`)
+- Exit `1`: any error, or any warning with `--strict`
 
 ## What gets checked
 
 ### Node.js / Bun
 pnpm version · `.npmrc` security rules · lockfile present · Renovate policy · `onlyBuiltDependencies` · `only-allow pnpm` · `packageManager` field · Node version pinned · `pnpm audit` · `.gitignore` patterns · secrets scan · security scripts
 
-→ Full details: [docs/checks-node.md](docs/checks-node.md)
+→ [docs/checks-node.md](docs/checks-node.md)
+
+### Electron
+All Node.js checks + Content Security Policy (CSP) · `nodeIntegration` disabled · native module rebuild integrity
+
+→ [docs/checks-node.md](docs/checks-node.md)
+
+### npm / yarn projects
+Detected automatically. locksmith flags missing `pnpm-lock.yaml` and proposes migration: `corepack` + `pnpm import` + `pnpm install` + updates `packageManager` field + removes old lockfile.
 
 ### Python / Poetry
 Poetry installed · `pyproject.toml` present · `poetry.lock` present · Python version pinned · `poetry audit` · `.gitignore` patterns · secrets scan · source pinned · dependency groups · Renovate policy
 
-→ Full details: [docs/checks-python.md](docs/checks-python.md)
+→ [docs/checks-python.md](docs/checks-python.md)
 
 ### Dockerfile (multi-stage aware)
-Pinned versions · recommended flags · secure copy/order conventions · caching/security best practices
+Pinned base image versions · recommended flags · secure COPY/CMD conventions · layer caching and security best practices
 
-→ Full details: [docs/dockerfile.md](docs/dockerfile.md)
+→ [docs/dockerfile.md](docs/dockerfile.md)
 
 ### Outdated packages
-Compares installed versions against npm/PyPI registry, respects `renovate.json` `minimumReleaseAge` delays, auto-fixes safe patches only.
+Compares installed versions against npm/PyPI registry. Respects `renovate.json` `minimumReleaseAge` delays. Auto-fixes safe patches only.
 
-→ Full details: [docs/outdated.md](docs/outdated.md)
+→ [docs/outdated.md](docs/outdated.md)
 
 ### Safe add / update
 Two-layer check before install/update: lifecycle script inspection (always) + Socket.dev supply chain score (opt-in via `SOCKET_SECURITY_API_TOKEN`). Critical risk (malware) blocks unconditionally.
 
-→ Full details: [docs/safe-add.md](docs/safe-add.md)
+→ [docs/safe-add.md](docs/safe-add.md)
 
 ## CI/CD
 
@@ -145,11 +151,13 @@ locksmith exposes all operations as MCP tools. Any MCP-compatible AI client can 
 
 ### Global MCP registration
 
-Run once after install. Auto-detects which AI clients are installed on the system and configures each one automatically:
+Done automatically by the installer. To reconfigure or add more clients:
 
 ```bash
-bun bin/register-mcp.ts
+locksmith register-mcp
 ```
+
+Auto-detects installed AI clients by checking their config directories. Configures all detected ones automatically. Falls back to interactive multi-select if none are detected.
 
 | Client | Config written | Notes |
 |---|---|---|
@@ -163,13 +171,15 @@ bun bin/register-mcp.ts
 | OpenAI Codex CLI | `~/.codex/config.json` | — |
 | ChatGPT Desktop | — | UI only: Settings → Connectors → Add connector |
 
-If no client is detected, falls back to an interactive multi-select.
-
 ### Per-project IDE setup
 
-Run `locksmith --install-mcp` in a project to create/update:
+Run once per project. Creates MCP config and copies skill rules for each client:
 
-| File | Client | Type |
+```bash
+locksmith --install-mcp
+```
+
+| File created | Client | Type |
 |---|---|---|
 | `.mcp.json` | Claude Code | MCP server config |
 | `CLAUDE.md` | Claude Code | Rules (appended) |
@@ -181,17 +191,15 @@ Run `locksmith --install-mcp` in a project to create/update:
 | `.github/copilot-instructions.md` | GitHub Copilot | Rules |
 | `AGENTS.md` | Google Jules / OpenAI Codex | Rules |
 
-In interactive terminals, `--install-mcp` prompts a multi-select to choose which clients to configure.
-
-For non-interactive environments (CI/scripts):
-
+Non-interactive (CI/scripts):
 ```bash
 locksmith --install-mcp --install-mcp-clients trae,claude,cursor,windsurf,cline,copilot,agents
 ```
 
-> **Note:** `trae` and `claude` install a per-project MCP server config. `copilot` and `agents` install rules-only. `cursor`, `windsurf`, and `cline` also benefit from global registration via `bun bin/register-mcp.ts`.
+> `trae` and `claude` create a per-project MCP server config. `copilot` and `agents` are rules-only.
 
 ### MCP tools
+
 | Tool | What it does |
 |---|---|
 | `locksmith_audit` | Full security audit |
@@ -203,18 +211,6 @@ locksmith --install-mcp --install-mcp-clients trae,claude,cursor,windsurf,cline,
 | `locksmith_fix_dockerfile` | Fix Dockerfile (no build verification) |
 | `locksmith_check_outdated` | Outdated packages vs Renovate policy |
 | `locksmith_safe_add` | Inspect package security before installing |
-
-### Token usage
-
-The AI skill (`docs/ai-skill.md`) is copied into each project on `--install-mcp`. It loads into the LLM context on every conversation.
-
-| Component | ~Tokens | Loaded |
-|---|---|---|
-| `ai-skill.md` (skill) | ~800 | Every conversation |
-| MCP tool schemas | ~300 | Via MCP protocol handshake |
-| `ai-skill-reference.md` | ~1,800 | On demand (humans only) |
-
-> Previous versions of the skill loaded ~3,000 tokens per conversation. Current: ~800 (~73% reduction).
 
 → Behavior rules: [docs/ai-skill.md](docs/ai-skill.md) · Full reference: [docs/ai-skill-reference.md](docs/ai-skill-reference.md)
 
