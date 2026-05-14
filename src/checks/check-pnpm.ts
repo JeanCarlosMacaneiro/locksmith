@@ -1,7 +1,7 @@
 import { $ } from "bun";
 import type { CheckResult } from "../types";
 
-const MIN_VERSION = 8;
+const MIN_VERSION = 11;
 
 export async function checkPnpm(_projectPath: string): Promise<CheckResult> {
   try {
@@ -26,7 +26,7 @@ export async function checkPnpm(_projectPath: string): Promise<CheckResult> {
     return {
       name: "pnpm version",
       status: "error",
-      message: "pnpm no está instalado — ejecuta: npm install -g pnpm",
+      message: "pnpm no está instalado — ejecuta: corepack enable && corepack install -g pnpm@latest",
       fixable: false,
     };
   }

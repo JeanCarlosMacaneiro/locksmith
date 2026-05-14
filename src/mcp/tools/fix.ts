@@ -4,6 +4,7 @@ import { runChecks } from "../../checks/index";
 import { applyFixes } from "../../fixer/apply";
 import type { ToolDefinition, FixOutput, McpErrorOutput } from "../types";
 import { serializeCheckResult } from "../types";
+import { validateProjectPath } from "../validate-path";
 
 export function createFixTool(deps = {
   detectProject,
@@ -20,7 +21,7 @@ export function createFixTool(deps = {
       projectPath: z.string().describe("Absolute path to the project directory"),
     },
     async handler(args) {
-      const projectPath = args.projectPath as string;
+      const projectPath = validateProjectPath(args.projectPath as string);
       try {
         const project = await deps.detectProject(projectPath);
         if (!project.valid) {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { detectProject } from "../../checks/detect-project";
 import { runOutdatedCheck } from "../../outdated/index";
 import type { ToolDefinition, OutdatedOutput } from "../types";
+import { validateProjectPath } from "../validate-path";
 
 export function createCheckOutdatedTool(deps = {
   detectProject,
@@ -16,7 +17,7 @@ export function createCheckOutdatedTool(deps = {
       projectPath: z.string().describe("Absolute path to the project directory"),
     },
     async handler(args) {
-      const projectPath = args.projectPath as string;
+      const projectPath = validateProjectPath(args.projectPath as string);
       try {
         const project = await deps.detectProject(projectPath);
         const { packages, policy } = await deps.runOutdatedCheck(projectPath, project.type);

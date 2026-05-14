@@ -5,6 +5,7 @@ import { runExternalScanners } from "../../docker/external-scanners";
 import { evaluateQualityGate } from "../../docker/quality-gate";
 import type { DockerSecurityReport, DockerSeverity, ScannerStatus } from "../../types";
 import type { ToolDefinition } from "../types";
+import { validateProjectPath } from "../validate-path";
 
 function buildLlmFixInstructions(issues: DockerSecurityReport["issues"]): string {
   const external = issues.filter((i) => i.source && i.source !== "internal");
@@ -39,7 +40,7 @@ export function createAuditDockerSecurityTool(deps = {
       skipDockerScout: z.boolean().optional().default(false),
     },
     async handler(args) {
-      const projectPath = args.projectPath as string;
+      const projectPath = validateProjectPath(args.projectPath as string);
       const failOn = (args.failOn as DockerSeverity | "none" | undefined) ?? "high";
       const skipHadolint = Boolean(args.skipHadolint);
       const skipTrivy = Boolean(args.skipTrivy);

@@ -4,6 +4,7 @@ import { analyzeDockerfile } from "../../docker/analyze-dockerfile";
 import { evaluateQualityGate } from "../../docker/quality-gate";
 import type { DockerSeverity } from "../../types";
 import type { ToolDefinition, DockerAuditOutput } from "../types";
+import { validateProjectPath } from "../validate-path";
 
 export function createAuditDockerTool(deps = {
   detectProject,
@@ -21,7 +22,7 @@ export function createAuditDockerTool(deps = {
       failOn: z.enum(["critical", "high", "medium", "low", "none"]).optional().describe("Severity threshold to fail the quality gate"),
     },
     async handler(args) {
-      const projectPath = args.projectPath as string;
+      const projectPath = validateProjectPath(args.projectPath as string);
       const failOn = (args.failOn as DockerSeverity | "none" | undefined) ?? "high";
       try {
         const project = await deps.detectProject(projectPath);

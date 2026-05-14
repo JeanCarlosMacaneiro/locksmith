@@ -83,11 +83,13 @@ export async function installProjectMcp(opts: InstallProjectMcpOptions): Promise
   }
 
   if (targets.has("copilot")) {
+    // rules only — GitHub Copilot has no native MCP support; skill file acts as instructions context
     const dest = join(opts.projectPath, ".github", "copilot-instructions.md");
     if (copyIfMissing(aiSkillSrc, dest)) created.push(dest);
   }
 
   if (targets.has("agents")) {
+    // rules only — AGENTS.md for Google Jules/Antigravity; MCP support experimental
     const dest = join(opts.projectPath, "AGENTS.md");
     if (copyIfMissing(aiSkillSrc, dest)) created.push(dest);
   }

@@ -16,8 +16,8 @@ afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true });
 });
 
-describe("registerClient — registro de clientes AI", () => {
-  it("registro básico: crea JSON correcto en directorio temporal", async () => {
+describe("registerClient — AI client registration", () => {
+  it("basic registration: creates correct JSON in temp directory", async () => {
     const client = CLIENTS.find((c) => c.id === "cursor")!;
     await registerClient(client, "/fake/mcp.ts", ROOT, "linux", { HOME: tmpDir });
 
@@ -31,7 +31,7 @@ describe("registerClient — registro de clientes AI", () => {
     });
   });
 
-  it("registro idempotente: segunda ejecución no duplica la entrada locksmith", async () => {
+  it("idempotent: second run does not duplicate locksmith entry", async () => {
     const client = CLIENTS.find((c) => c.id === "cursor")!;
     const env = { HOME: tmpDir };
 
@@ -44,7 +44,7 @@ describe("registerClient — registro de clientes AI", () => {
     expect(serverKeys.filter((k) => k === "locksmith").length).toBe(1);
   });
 
-  it("JSON malformado: backup creado, archivo recreado, registro exitoso", async () => {
+  it("malformed JSON: backup created, file recreated, registration succeeds", async () => {
     const client = CLIENTS.find((c) => c.id === "cursor")!;
     const configDir = join(tmpDir, ".cursor");
     mkdirSync(configDir, { recursive: true });
@@ -60,7 +60,7 @@ describe("registerClient — registro de clientes AI", () => {
     expect(config.mcpServers?.locksmith?.command).toBe("bun");
   });
 
-  it("preserva claves existentes al registrar", async () => {
+  it("preserves existing keys on registration", async () => {
     const client = CLIENTS.find((c) => c.id === "cursor")!;
     const configDir = join(tmpDir, ".cursor");
     mkdirSync(configDir, { recursive: true });
@@ -81,7 +81,7 @@ describe("registerClient — registro de clientes AI", () => {
     expect(config.mcpServers?.locksmith?.command).toBe("bun");
   });
 
-  it("cliente con skillMode 'copy-file' (Kiro): copia skill al destino", async () => {
+  it("skillMode 'copy-file' (Kiro): copies skill to destination", async () => {
     const client = CLIENTS.find((c) => c.id === "kiro")!;
     await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", { HOME: tmpDir });
 
@@ -92,21 +92,21 @@ describe("registerClient — registro de clientes AI", () => {
     expect(content.length).toBeGreaterThan(0);
   });
 
-  it("cliente con skillMode 'copy-file': segunda ejecución no sobreescribe skill", async () => {
+  it("skillMode 'copy-file': second run does not overwrite skill", async () => {
     const client = CLIENTS.find((c) => c.id === "kiro")!;
     const env = { HOME: tmpDir };
 
     await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", env);
 
     const skillDest = join(tmpDir, ".kiro/steering/locksmith.md");
-    writeFileSync(skillDest, "contenido personalizado");
+    writeFileSync(skillDest, "custom content");
 
     await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", env);
 
-    expect(readFileSync(skillDest, "utf-8")).toBe("contenido personalizado");
+    expect(readFileSync(skillDest, "utf-8")).toBe("custom content");
   });
 
-  it("cliente con skillMode 'append-to-file' (Claude Desktop): añade skill a CLAUDE.md", async () => {
+  it("skillMode 'append-to-file' (Claude Desktop): adds skill to CLAUDE.md", async () => {
     const client = CLIENTS.find((c) => c.id === "claude-desktop")!;
     await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", { HOME: tmpDir });
 
@@ -117,7 +117,7 @@ describe("registerClient — registro de clientes AI", () => {
     expect(content).toContain("locksmith — AI rules");
   });
 
-  it("cliente con skillMode 'append-to-file': no duplica si ya existe el marcador", async () => {
+  it("skillMode 'append-to-file': does not duplicate if marker already exists", async () => {
     const client = CLIENTS.find((c) => c.id === "claude-desktop")!;
     const env = { HOME: tmpDir };
 
@@ -130,35 +130,20 @@ describe("registerClient — registro de clientes AI", () => {
     expect(count).toBe(1);
   });
 
-  it("cliente con skillMode 'append-to-file': preserva contenido existente en CLAUDE.md", async () => {
+  it("skillMode 'append-to-file': preserves existing CLAUDE.md content", async () => {
     const client = CLIENTS.find((c) => c.id === "claude-desktop")!;
     const claudeMd = join(tmpDir, ".claude/CLAUDE.md");
     mkdirSync(join(tmpDir, ".claude"), { recursive: true });
-    writeFileSync(claudeMd, "# Mis instrucciones existentes\n");
+    writeFileSync(claudeMd, "# My existing instructions\n");
 
     await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", { HOME: tmpDir });
 
     const content = readFileSync(claudeMd, "utf-8");
-    expect(content).toContain("# Mis instrucciones existentes");
+    expect(content).toContain("# My existing instructions");
     expect(content).toContain("locksmith — AI rules");
   });
 
-  it("cliente con configPath null (Trae): solo imprime hint, no crea archivos", async () => {
-    const client = CLIENTS.find((c) => c.id === "trae")!;
-    await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", { HOME: tmpDir });
-
-    expect(existsSync(join(tmpDir, ".trae"))).toBe(false);
-    expect(existsSync(join(tmpDir, ".cursor"))).toBe(false);
-  });
-
-  it("cliente con configPath null (Copilot): no crea archivos", async () => {
-    const client = CLIENTS.find((c) => c.id === "copilot")!;
-    await registerClient(client, "/fake/mcp.ts", ROOT, "linux", { HOME: tmpDir });
-
-    expect(existsSync(join(tmpDir, ".github"))).toBe(false);
-  });
-
-  it("crea directorios anidados si no existen", async () => {
+  it("creates nested directories if they do not exist", async () => {
     const client = CLIENTS.find((c) => c.id === "windsurf")!;
     await registerClient(client, "/fake/mcp.ts", ROOT, "darwin", { HOME: tmpDir });
 

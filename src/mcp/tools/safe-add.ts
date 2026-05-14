@@ -6,6 +6,7 @@ import { determineRiskLevel } from "../../add/security-report";
 import { installPackage } from "../../add/installer";
 import { RegistryError } from "../../types";
 import type { ToolDefinition, SafeAddOutput, McpErrorOutput } from "../types";
+import { validateProjectPath } from "../validate-path";
 
 export function createSafeAddTool(deps = {
   resolveVersion,
@@ -33,7 +34,7 @@ export function createSafeAddTool(deps = {
         .describe("If true and risk is not critical, install the package via pnpm"),
     },
     async handler(args) {
-      const projectPath = args.projectPath as string;
+      const projectPath = validateProjectPath(args.projectPath as string);
       const pkgArg = args.package as string;
       const shouldInstall = args.install === true;
 

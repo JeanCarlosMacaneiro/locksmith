@@ -8,9 +8,12 @@ export interface CheckResult {
   wasFixed?: boolean;
 }
 
+export type ProjectType = "node" | "bun" | "electron" | "npm" | "yarn" | "python" | "unknown";
+
 export interface ProjectInfo {
   valid: boolean;
-  type: "node" | "bun" | "python" | "unknown";
+  type: ProjectType;
+  packageManager: "pnpm" | "bun" | "npm" | "yarn" | "unknown";
   name: string;
   version: string;
   hasBunLockb: boolean;

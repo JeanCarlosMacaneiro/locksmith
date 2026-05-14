@@ -8,13 +8,13 @@ import { runOutdated }        from "../outdated/index";
 import { analyzeDockerfile }  from "../docker/analyze-dockerfile";
 import { showDockerWarnings } from "../docker/prompt-dockerfile";
 import { promptDockerFix }    from "../docker/prompt-dockerfile";
-import type { RunOptions }    from "../types";
+import type { CheckResult, ProjectType, RunOptions } from "../types";
 
 // ── Shared checks ─────────────────────────────────────────────────────────────
 import { checkSecrets }        from "./check-secrets";
 import { checkGitignore }      from "./check-gitignore";
 
-// ── Node checks ───────────────────────────────────────────────────────────────
+// ── Node/JS checks ────────────────────────────────────────────────────────────
 import { checkPnpm }           from "./check-pnpm";
 import { checkNpmrc }          from "./check-npmrc";
 import { checkLockfile }       from "./check-lockfile";
@@ -24,6 +24,11 @@ import { checkOnlyAllow }      from "./check-only-allow";
 import { checkPackageManager } from "./check-package-manager";
 import { checkNodeVersion }    from "./check-node-version";
 import { checkScripts }        from "./check-scripts";
+
+// ── Electron checks ───────────────────────────────────────────────────────────
+import { checkElectronCsp }             from "./check-electron-csp";
+import { checkElectronNodeIntegration } from "./check-electron-node-integration";
+import { checkElectronRebuild }         from "./check-electron-rebuild";
 
 // ── Python checks ─────────────────────────────────────────────────────────────
 import { checkPoetry }         from "./python/check-poetry";
@@ -35,7 +40,7 @@ import { checkDepGroups }      from "./python/check-dep-groups";
 import { checkPythonVersion }  from "./python/check-python-version";
 import { checkPypiSource }     from "./python/check-pypi-source";
 
-export async function runChecks(projectPath: string, type: string) {
+export async function runChecks(projectPath: string, type: string): Promise<CheckResult[]> {
   if (type === "python") {
     return Promise.all([
       checkPoetry(projectPath),
@@ -52,20 +57,32 @@ export async function runChecks(projectPath: string, type: string) {
     ]);
   }
 
-  return Promise.all([
+  const t = type as ProjectType;
+
+  const jsChecks: Promise<CheckResult>[] = [
     checkPnpm(projectPath),
     checkNpmrc(projectPath),
-    checkLockfile(projectPath),
+    checkLockfile(projectPath, t),
     checkRenovate(projectPath),
     checkBuiltDeps(projectPath),
     checkOnlyAllow(projectPath),
-    checkPackageManager(projectPath),
+    checkPackageManager(projectPath, t),
     checkNodeVersion(projectPath),
-    checkAudit(projectPath),
+    checkAudit(projectPath, t),
     checkGitignore(projectPath),
     checkSecrets(projectPath),
     checkScripts(projectPath),
-  ]);
+  ];
+
+  if (type === "electron") {
+    jsChecks.push(
+      checkElectronCsp(projectPath),
+      checkElectronNodeIntegration(projectPath),
+      checkElectronRebuild(projectPath),
+    );
+  }
+
+  return Promise.all(jsChecks);
 }
 
 async function runDockerfileFlow(
@@ -97,7 +114,6 @@ export async function runAllChecks(opts: RunOptions) {
     pc.green(`✓ Proyecto: ${pc.bold(project.name)} [${project.type}]\n`)
   );
 
-  // --fix-dockerfile only: skip security checks, apply Docker fixes directly
   if ((opts.fixDockerfile || opts.fixDocker) && !opts.fix) {
     await runDockerfileFlow(opts.projectPath, project.type, "fix", true);
     process.exit(0);

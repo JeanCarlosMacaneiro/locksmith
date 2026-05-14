@@ -37,7 +37,7 @@ export const CLIENTS: McpClient[] = [
     darwinPath: "${HOME}/.cursor/mcp.json",
     linuxPath: "${HOME}/.cursor/mcp.json",
     win32Path: "${HOME}/.cursor/mcp.json",
-    hint: "Cursor: copia docs/ai-skill.md → .cursor/rules/locksmith.md en cada proyecto",
+    hint: "Cursor: also run `locksmith <path> --install-mcp` per project to copy skill rules",
   },
   {
     id: "windsurf",
@@ -45,7 +45,7 @@ export const CLIENTS: McpClient[] = [
     darwinPath: "${HOME}/.codeium/windsurf/mcp_config.json",
     linuxPath: "${HOME}/.codeium/windsurf/mcp_config.json",
     win32Path: "${HOME}/.codeium/windsurf/mcp_config.json",
-    hint: "Windsurf: copia docs/ai-skill.md → .windsurf/rules/locksmith.md en cada proyecto",
+    hint: "Windsurf: also run `locksmith <path> --install-mcp` per project to copy skill rules",
   },
   {
     id: "cline",
@@ -56,7 +56,7 @@ export const CLIENTS: McpClient[] = [
       "${HOME}/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json",
     win32Path:
       "${APPDATA}\\Code\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\cline_mcp_settings.json",
-    hint: "Cline: copia docs/ai-skill.md → .clinerules/locksmith.md en cada proyecto",
+    hint: "Cline: also run `locksmith <path> --install-mcp` per project to copy skill rules",
   },
   {
     id: "kiro",
@@ -66,21 +66,6 @@ export const CLIENTS: McpClient[] = [
     win32Path: "${HOME}/.kiro/settings/mcp.json",
     skillPath: "${HOME}/.kiro/steering/locksmith.md",
     skillMode: "copy-file",
-  },
-  {
-    id: "trae",
-    name: "Trae (ByteDance)",
-    hint: "Trae: configuración es por proyecto — copia docs/ai-skill.md → .trae/rules/locksmith.md",
-  },
-  {
-    id: "copilot",
-    name: "GitHub Copilot",
-    hint: "GitHub Copilot: sin soporte MCP nativo — copia docs/ai-skill.md → .github/copilot-instructions.md",
-  },
-  {
-    id: "antigravity",
-    name: "Google Antigravity",
-    hint: "Google Antigravity: configuración MCP en investigación — copia docs/ai-skill.md → AGENTS.md",
   },
 ];
 
@@ -148,7 +133,7 @@ export async function multiselect(options: string[]): Promise<number[]> {
   process.stdin.resume();
   process.stdin.setEncoding("binary");
 
-  out(`  \x1b[2m↑↓ navegar · espacio marcar · enter confirmar\x1b[0m\r\n\r\n`);
+  out(`  \x1b[2m↑↓ navigate · space select · enter confirm\x1b[0m\r\n\r\n`);
   draw();
 
   return new Promise<number[]>((resolve, reject) => {
@@ -229,7 +214,7 @@ export async function registerClient(
 
   const config = buildMcpConfig(existingConfig, mcpEntryPath);
   writeFileSync(configPath, JSON.stringify(config, null, 2));
-  process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: MCP configurado\n`);
+  process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: MCP configured\n`);
 
   if (client.skillPath && client.skillMode) {
     const skillDest = resolveTemplate(client.skillPath, env);
@@ -239,9 +224,9 @@ export async function registerClient(
     if (client.skillMode === "copy-file") {
       if (!existsSync(skillDest)) {
         copyFileSync(skillSrc, skillDest);
-        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: skill instalado\n`);
+        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: skill installed\n`);
       } else {
-        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: skill ya instalado\n`);
+        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: skill already installed\n`);
       }
     } else if (client.skillMode === "append-to-file") {
       const skillContent = readFileSync(skillSrc, "utf-8");
@@ -253,9 +238,9 @@ export async function registerClient(
           skillDest,
           existingContent + "\n---\n# locksmith — AI rules\n" + skillContent
         );
-        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: reglas añadidas\n`);
+        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: rules added\n`);
       } else {
-        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: reglas ya instaladas\n`);
+        process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: rules already installed\n`);
       }
     }
   }
@@ -279,7 +264,7 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
 
   if (!interactive) {
     process.stdout.write(
-      "  \x1b[36m→\x1b[0m Modo no interactivo — omitiendo integración AI\n"
+      "  \x1b[36m→\x1b[0m Non-interactive mode — skipping AI integration\n"
     );
     return;
   }
@@ -287,10 +272,10 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
   const answer =
     overrides.selectedIndices !== undefined
       ? true
-      : await askYesNo("¿Instalar integración AI con clientes MCP? (s/n)");
+      : await askYesNo("Install AI integration with MCP clients? (y/n)");
 
   if (!answer) {
-    process.stdout.write("  \x1b[2mIntegración AI omitida\x1b[0m\n");
+    process.stdout.write("  \x1b[2mAI integration skipped\x1b[0m\n");
     return;
   }
 
@@ -301,7 +286,7 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
 
   if (selectedIndices.length === 0) {
     process.stdout.write(
-      "  \x1b[33m⚠\x1b[0m  Ningún cliente seleccionado — omitiendo configuración\n"
+      "  \x1b[33m⚠\x1b[0m  No clients selected — skipping configuration\n"
     );
     return;
   }
@@ -313,7 +298,10 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
     }
   }
 
-  process.stdout.write("\n  \x1b[32m✓\x1b[0m Clientes AI configurados\n");
+  process.stdout.write("\n  \x1b[32m✓\x1b[0m AI clients configured\n");
+  process.stdout.write(
+    "  \x1b[2m→ Run `locksmith <path> --install-mcp` in each project to install per-project skill rules\x1b[0m\n"
+  );
 }
 
 if (import.meta.main) {
@@ -335,7 +323,7 @@ if (import.meta.main) {
         for (const id of ids) {
           const client = CLIENTS.find((c) => c.id === id);
           if (!client) {
-            process.stderr.write(`Cliente desconocido: ${id}\n`);
+            process.stderr.write(`Unknown client: ${id}\n`);
             process.exitCode = 1;
             continue;
           }

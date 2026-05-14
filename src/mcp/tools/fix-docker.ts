@@ -7,6 +7,7 @@ import { applyDockerfileFix } from "../../docker/fix-dockerfile";
 import { applyDockerignoreFix } from "../../docker/fix-dockerignore";
 import type { DockerIssue } from "../../types";
 import type { ToolDefinition, DockerFixOutput, BuildFailure, LLMContext, NextStep } from "../types";
+import { validateProjectPath } from "../validate-path";
 
 type FixState = {
   dockerfilePath: string;
@@ -133,7 +134,7 @@ export function createFixDockerTool(deps = {
       buildFixProposal: z.string().optional().describe("Full proposed Dockerfile content to apply and verify"),
     },
     async handler(args) {
-      const projectPath = args.projectPath as string;
+      const projectPath = validateProjectPath(args.projectPath as string);
       const verifyBuild = Boolean(args.verifyBuild);
       const buildFixProposal = typeof args.buildFixProposal === "string" ? (args.buildFixProposal as string) : null;
 

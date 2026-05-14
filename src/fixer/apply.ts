@@ -175,6 +175,38 @@ export async function applyNodeVersion(projectPath: string) {
   writeFileSync(join(projectPath, ".nvmrc"), `${version}\n`);
 }
 
+// ─── Electron fixers ─────────────────────────────────────────────────────────
+
+export async function applyElectronRebuildFix(projectPath: string) {
+  const pkgPath = join(projectPath, "package.json");
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+  const scripts: Record<string, string> = pkg.scripts ?? {};
+
+  const REBUILD_PKGS = ["electron-rebuild", "@electron/rebuild"];
+  const postinstall: string = scripts.postinstall ?? "";
+  const hasRebuildInPostinstall = REBUILD_PKGS.some((p) => postinstall.includes(p));
+
+  if (hasRebuildInPostinstall) {
+    // Remove electron-rebuild from postinstall
+    const cleaned = postinstall
+      .split("&&")
+      .map((s) => s.trim())
+      .filter((s) => !REBUILD_PKGS.some((p) => s.includes(p)))
+      .join(" && ")
+      .trim();
+    scripts.postinstall = cleaned || undefined as unknown as string;
+    if (!cleaned) delete scripts.postinstall;
+  }
+
+  if (!scripts.rebuild) {
+    const rebuildBin = "@electron/rebuild" in (pkg.devDependencies ?? {}) ? "electron-rebuild" : "electron-rebuild";
+    scripts.rebuild = rebuildBin;
+  }
+
+  pkg.scripts = scripts;
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+}
+
 // ─── Shared fixers ────────────────────────────────────────────────────────────
 
 const GITIGNORE_SECURITY_PATTERNS = [

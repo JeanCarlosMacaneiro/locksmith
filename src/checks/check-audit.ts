@@ -1,46 +1,53 @@
 import { $ } from "bun";
-import type { CheckResult } from "../types";
+import type { CheckResult, ProjectType } from "../types";
 
-export async function checkAudit(projectPath: string): Promise<CheckResult> {
+type VulnCounts = { critical: number; high: number; moderate: number; low: number };
+
+function parsePnpmNpm(json: string): VulnCounts {
+  const data = JSON.parse(json || "{}") as Record<string, unknown>;
+  const v = (data.metadata as Record<string, unknown>)?.vulnerabilities as Record<string, number> ?? {};
+  return { critical: v.critical ?? 0, high: v.high ?? 0, moderate: v.moderate ?? 0, low: v.low ?? 0 };
+}
+
+function parseYarn(output: string): VulnCounts {
+  for (const line of output.trim().split("\n").reverse()) {
+    try {
+      const obj = JSON.parse(line) as { type: string; data: { vulnerabilities: Record<string, number> } };
+      if (obj.type === "auditSummary") {
+        const v = obj.data.vulnerabilities;
+        return { critical: v.critical ?? 0, high: v.high ?? 0, moderate: v.moderate ?? 0, low: v.low ?? 0 };
+      }
+    } catch { continue; }
+  }
+  return { critical: 0, high: 0, moderate: 0, low: 0 };
+}
+
+function toResult(name: string, v: VulnCounts): CheckResult {
+  const total = v.critical + v.high + v.moderate + v.low;
+  if (total === 0) return { name, status: "ok", message: "Sin vulnerabilidades conocidas" };
+  if (v.critical > 0 || v.high > 0) {
+    return { name, status: "error", message: `${v.critical} críticas · ${v.high} altas · ${v.moderate} moderadas · ${v.low} bajas` };
+  }
+  return { name, status: "warn", message: `${v.moderate} moderadas · ${v.low} bajas` };
+}
+
+export async function checkAudit(projectPath: string, type: ProjectType = "node"): Promise<CheckResult> {
   try {
-    const result = await $`pnpm audit --json`.cwd(projectPath).text().catch((e) => e.stdout ?? "{}");
-    const data = JSON.parse(result || "{}");
-
-    const metadata = data.metadata ?? {};
-    const vulnerabilities = metadata.vulnerabilities ?? {};
-
-    const critical = vulnerabilities.critical ?? 0;
-    const high = vulnerabilities.high ?? 0;
-    const moderate = vulnerabilities.moderate ?? 0;
-    const low = vulnerabilities.low ?? 0;
-    const total = critical + high + moderate + low;
-
-    if (total === 0) {
-      return {
-        name: "pnpm audit",
-        status: "ok",
-        message: "Sin vulnerabilidades conocidas",
-      };
+    if (type === "yarn") {
+      const output = await $`yarn audit --json`.cwd(projectPath).text().catch((e: { stdout?: string }) => e.stdout ?? "");
+      return toResult("yarn audit", parseYarn(output));
     }
 
-    if (critical > 0 || high > 0) {
-      return {
-        name: "pnpm audit",
-        status: "error",
-        message: `${critical} críticas · ${high} altas · ${moderate} moderadas · ${low} bajas`,
-      };
+    if (type === "npm") {
+      const output = await $`npm audit --json`.cwd(projectPath).text().catch((e: { stdout?: string }) => e.stdout ?? "{}");
+      return toResult("npm audit", parsePnpmNpm(output));
     }
 
-    return {
-      name: "pnpm audit",
-      status: "warn",
-      message: `${moderate} moderadas · ${low} bajas`,
-    };
+    // pnpm — default for node, bun, electron
+    const output = await $`pnpm audit --json`.cwd(projectPath).text().catch((e: { stdout?: string }) => e.stdout ?? "{}");
+    return toResult("pnpm audit", parsePnpmNpm(output));
   } catch {
-    return {
-      name: "pnpm audit",
-      status: "warn",
-      message: "No se pudo ejecutar pnpm audit (¿lockfile presente?)",
-    };
+    const pm = type === "yarn" ? "yarn" : type === "npm" ? "npm" : "pnpm";
+    return { name: `${pm} audit`, status: "warn", message: `No se pudo ejecutar ${pm} audit (¿lockfile presente?)` };
   }
 }

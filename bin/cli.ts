@@ -23,52 +23,52 @@ yargs(hideBin(process.argv))
   .usage("$0 [path] [options]")
   .command(
     "$0 [path]",
-    "Analiza políticas de seguridad del proyecto",
+    "Audit project security policies",
     (y) =>
       y
         .positional("path", {
-          describe: "Ruta del proyecto a analizar",
+          describe: "Project path to audit",
           type: "string",
           default: process.cwd(),
         })
         .option("fix", {
           type: "boolean",
-          description: "Aplica correcciones automáticas",
+          description: "Apply automatic fixes",
           default: false,
         })
         .option("fix-dockerfile", {
           type: "boolean",
-          description: "Analiza y corrige Dockerfile del proyecto (Node y Python)",
+          description: "Analyze and fix project Dockerfile (Node and Python)",
           default: false,
         })
         .option("fix-docker", {
           type: "boolean",
-          description: "Alias de --fix-dockerfile",
+          description: "Alias for --fix-dockerfile",
           default: false,
         })
         .option("report", {
           type: "string",
           choices: ["json", "markdown"] as const,
-          description: "Exporta reporte en el formato indicado",
+          description: "Export report in the specified format",
         })
         .option("strict", {
           type: "boolean",
-          description: "Falla con exit 1 si hay advertencias",
+          description: "Exit 1 on warnings",
           default: false,
         })
         .option("outdated", {
           type: "boolean",
-          description: "Verifica paquetes desactualizados y valida contra política de Renovate",
+          description: "Check outdated packages and validate against Renovate policy",
           default: false,
         })
         .option("install-mcp", {
           type: "boolean",
-          description: "Configura integración MCP por proyecto (clientes basados en IDE)",
+          description: "Configure per-project MCP integration (IDE-based clients)",
           default: false,
         })
         .option("install-mcp-clients", {
           type: "string",
-          description: "Lista CSV para modo no interactivo: trae,cursor,windsurf,cline,copilot,agents",
+          description: "CSV list for non-interactive mode: trae,cursor,windsurf,cline,copilot,agents",
         }),
     async (argv) => {
       if (argv["install-mcp"] as boolean) {
@@ -86,7 +86,7 @@ yargs(hideBin(process.argv))
             : ["trae", "cursor", "windsurf", "cline", "copilot", "agents"]);
 
         if (targets.length === 0) {
-          console.log("⚠ Ningún cliente seleccionado — omitiendo configuración");
+          console.log("⚠ No clients selected — skipping configuration");
           return;
         }
 
@@ -96,9 +96,9 @@ yargs(hideBin(process.argv))
           targets,
         });
         if (created.length === 0) {
-          console.log("✓ MCP por proyecto ya estaba configurado");
+          console.log("✓ Per-project MCP already configured");
         } else {
-          console.log("✓ MCP por proyecto configurado");
+          console.log("✓ Per-project MCP configured");
           for (const p of created) console.log(`  → ${p}`);
         }
         return;
@@ -119,12 +119,12 @@ yargs(hideBin(process.argv))
   )
   .command(
     "add <package>",
-    "Verifica seguridad e instala un paquete con pnpm",
+    "Audit and install a package with pnpm",
     (y) =>
       y
         .positional("package", { type: "string", demandOption: true })
-        .option("force", { type: "boolean", default: false, description: "Omite confirmación en riesgo medio" })
-        .option("dry-run", { type: "boolean", default: false, description: "Analiza sin instalar" }),
+        .option("force", { type: "boolean", default: false, description: "Skip confirmation on medium risk" })
+        .option("dry-run", { type: "boolean", default: false, description: "Analyze without installing" }),
     async (argv) => {
       const [pkg, version] = (argv.package as string).split("@");
       await runSafeAdd({
@@ -138,12 +138,12 @@ yargs(hideBin(process.argv))
   )
   .command(
     "update <package>",
-    "Verifica seguridad y actualiza un paquete con pnpm",
+    "Audit and update a package with pnpm",
     (y) =>
       y
         .positional("package", { type: "string", demandOption: true })
-        .option("force", { type: "boolean", default: false, description: "Omite confirmación en riesgo medio" })
-        .option("dry-run", { type: "boolean", default: false, description: "Analiza sin actualizar" }),
+        .option("force", { type: "boolean", default: false, description: "Skip confirmation on medium risk" })
+        .option("dry-run", { type: "boolean", default: false, description: "Analyze without updating" }),
     async (argv) => {
       const [pkg, version] = (argv.package as string).split("@");
       await runSafeUpdate({
