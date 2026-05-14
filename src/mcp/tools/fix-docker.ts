@@ -58,28 +58,28 @@ function buildProbableCause(diff: string, buildError: string): { probableCause: 
 
   if (e.includes("user") && d.includes("\n+user ")) {
     return {
-      probableCause: "El cambio relacionado a USER probablemente introdujo un usuario inexistente o sin permisos en el contenedor.",
-      suggestedApproach: "Asegura que el usuario exista antes de usar USER, y que tenga permisos sobre el WORKDIR (adduser/useradd + chown).",
+      probableCause: "The USER-related change likely introduced a non-existent user or one without permissions in the container.",
+      suggestedApproach: "Ensure the user exists before using USER, and that it has permissions over the WORKDIR (adduser/useradd + chown).",
     };
   }
 
   if (e.includes("pnpm") || e.includes("corepack")) {
     return {
-      probableCause: "El cambio en la instalación de dependencias (pnpm/corepack) probablemente no es compatible con la imagen base o el orden de COPY/RUN.",
-      suggestedApproach: "Revisa el orden de COPY de lockfiles, ejecuta corepack enable, y valida que el comando de instalación use flags compatibles.",
+      probableCause: "The change in dependency installation (pnpm/corepack) is likely incompatible with the base image or COPY/RUN order.",
+      suggestedApproach: "Review the order of lockfile COPYs, run corepack enable, and validate that the install command uses compatible flags.",
     };
   }
 
   if (e.includes("apt-get") || e.includes("apk")) {
     return {
-      probableCause: "Un cambio en la instalación de paquetes del sistema (apt/apk) probablemente dejó un comando inválido o incompleto.",
-      suggestedApproach: "Combina update/install/cleanup en el mismo RUN y valida paquetes/nombres según la distro base.",
+      probableCause: "A change in system package installation (apt/apk) likely left an invalid or incomplete command.",
+      suggestedApproach: "Combine update/install/cleanup in the same RUN and validate package names for the base distro.",
     };
   }
 
   return {
-    probableCause: "El fix automático cambió el Dockerfile de una forma incompatible con el build actual.",
-    suggestedApproach: "Aísla el cambio mínimo que rompe el build y ajusta el Dockerfile manteniendo la intención del fix.",
+    probableCause: "The automatic fix changed the Dockerfile in a way that is incompatible with the current build.",
+    suggestedApproach: "Isolate the minimal change that breaks the build and adjust the Dockerfile while preserving the fix intent.",
   };
 }
 
@@ -236,7 +236,7 @@ export function createFixDockerTool(deps = {
           buildError: build.stderr,
           probableCause,
           suggestedApproach,
-          userMessage: "El docker build falló después de aplicar el fix. Se devolvió contexto para iterar una propuesta corregida.",
+          userMessage: "docker build failed after applying the fix. Context returned to iterate a corrected proposal.",
         };
 
         const remainingIterations = Math.max(0, 5 - state.iterationCount);
@@ -246,7 +246,7 @@ export function createFixDockerTool(deps = {
           requiredParams: {
             projectPath,
             verifyBuild: true,
-            buildFixProposal: "<REEMPLAZA_CON_DOCKERFILE_COMPLETO>",
+            buildFixProposal: "<REPLACE_WITH_COMPLETE_DOCKERFILE>",
           },
         };
 

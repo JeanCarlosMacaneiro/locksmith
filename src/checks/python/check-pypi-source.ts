@@ -8,7 +8,7 @@ export async function checkPypiSource(projectPath: string): Promise<CheckResult>
   const pyprojectPath = join(projectPath, "pyproject.toml");
 
   if (!existsSync(pyprojectPath)) {
-    return { name: "PyPI registry", status: "warn", message: "pyproject.toml no encontrado" };
+    return { name: "PyPI registry", status: "warn", message: "pyproject.toml not found" };
   }
 
   const content = readFileSync(pyprojectPath, "utf-8");
@@ -42,7 +42,7 @@ export async function checkPypiSource(projectPath: string): Promise<CheckResult>
     return {
       name: "PyPI registry",
       status: "error",
-      message: `Sources no oficiales detectados: ${untrustedSources.join(", ")}`,
+      message: `Unofficial sources detected: ${untrustedSources.join(", ")}`,
       fixable: true,
       fix: async () => {
         const { applyPypiSource } = await import("../../fixer/apply");

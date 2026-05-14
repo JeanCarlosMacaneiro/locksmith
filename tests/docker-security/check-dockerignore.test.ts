@@ -27,14 +27,14 @@ describe("docker-security-layer — check-dockerignore", () => {
   it("Property 12: .dockerignore incompleto genera issues por entradas faltantes", () => {
     writeFileSync(join(dir, ".dockerignore"), `${SENSITIVE_PATTERNS[0]}\n`, "utf-8");
     const issues = checkDockerignore(dir);
-    const missingPatternIssues = issues.filter((i) => i.description.startsWith("Entrada faltante en .dockerignore:"));
+    const missingPatternIssues = issues.filter((i) => i.description.startsWith("Missing entry in .dockerignore:"));
     expect(missingPatternIssues.length).toBe(SENSITIVE_PATTERNS.length - 1);
   });
 
   it("no reporta faltantes cuando .dockerignore incluye todos los patrones", () => {
     writeFileSync(join(dir, ".dockerignore"), generateBaseDockerignore(), "utf-8");
     const issues = checkDockerignore(dir);
-    const missingPatternIssues = issues.filter((i) => i.description.startsWith("Entrada faltante en .dockerignore:"));
+    const missingPatternIssues = issues.filter((i) => i.description.startsWith("Missing entry in .dockerignore:"));
     expect(missingPatternIssues.length).toBe(0);
   });
 });

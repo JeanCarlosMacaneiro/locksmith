@@ -7,18 +7,18 @@ export async function applyFixes(results: CheckResult[], projectPath: string) {
   const fixable = results.filter((r) => r.status !== "ok" && r.fixable && r.fix);
 
   if (fixable.length === 0) {
-    console.log(pc.dim("  No hay correcciones automáticas disponibles.\n"));
+    console.log(pc.dim("  No automatic fixes available.\n"));
     return;
   }
 
-  console.log(pc.bold(`\n🔧 Aplicando ${fixable.length} corrección(es)...\n`));
+  console.log(pc.bold(`\n🔧 Applying ${fixable.length} fix(es)...\n`));
 
   for (const r of fixable) {
     try {
       await r.fix!();
-      console.log(pc.green(`  ✓ ${r.name} corregido`));
+      console.log(pc.green(`  ✓ ${r.name} fixed`));
     } catch (e) {
-      console.error(pc.red(`  ✗ Error corrigiendo ${r.name}: ${e}`));
+      console.error(pc.red(`  ✗ Error fixing ${r.name}: ${e}`));
     }
   }
 

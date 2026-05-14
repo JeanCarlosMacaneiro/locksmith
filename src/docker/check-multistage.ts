@@ -35,9 +35,9 @@ function installsNodeDepsIncludingDev(trimmed: string): boolean {
 
 function buildIssue(lineNum: number, original: string): DockerIssue {
   const remediationGuide = [
-    "El Dockerfile parece un buen candidato para multi-stage builds.",
-    "En un single-stage, herramientas de build/devDependencies pueden quedar dentro de la imagen final, aumentando tamaño y riesgo.",
-    "Solución recomendada: usa un stage de build para instalar dependencias y compilar, y un stage final mínimo que copie solo artefactos necesarios.",
+    "The Dockerfile looks like a good candidate for multi-stage builds.",
+    "In a single-stage build, build tools/devDependencies may end up in the final image, increasing size and risk.",
+    "Recommended fix: use a build stage to install dependencies and compile, and a minimal final stage that copies only required artifacts.",
   ].join("\n");
 
   return {
@@ -45,7 +45,7 @@ function buildIssue(lineNum: number, original: string): DockerIssue {
     kind: "advisory",
     severity: "medium",
     source: "internal",
-    description: "Candidato a multi-stage build (single-stage con señales de build/devDependencies)",
+    description: "Multi-stage build candidate (single-stage with build/devDependencies signals)",
     original,
     replacement: null,
     remediationGuide,

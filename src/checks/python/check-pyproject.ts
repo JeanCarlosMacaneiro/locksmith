@@ -11,7 +11,7 @@ export async function checkPyproject(projectPath: string): Promise<CheckResult> 
     return {
       name: "pyproject.toml",
       status: "error",
-      message: "pyproject.toml no encontrado — proyecto Poetry no inicializado",
+      message: "pyproject.toml not found — Poetry project not initialized",
       fixable: true,
       fix: async () => {
         const { applyPyproject } = await import("../../fixer/apply");
@@ -23,21 +23,21 @@ export async function checkPyproject(projectPath: string): Promise<CheckResult> 
   const content = readFileSync(pyprojectPath, "utf-8");
   const issues: string[] = [];
 
-  // Validar que tiene sección [tool.poetry]
+  // Validate that [tool.poetry] section exists
   if (!content.includes("[tool.poetry]")) {
-    issues.push("falta sección [tool.poetry]");
+    issues.push("missing section [tool.poetry]");
   }
 
-  // Validar requires-python >= 3.12
+  // Validate requires-python >= 3.12
   const pythonMatch = content.match(/python\s*=\s*"([^"]+)"/);
   if (!pythonMatch) {
-    issues.push(`falta requires-python = "${REQUIRED_PYTHON}"`);
+    issues.push(`missing requires-python = "${REQUIRED_PYTHON}"`);
   } else {
     const spec = pythonMatch[1] ?? "";
     const versionMatch = spec.match(/(\d+\.\d+)/);
     const version = versionMatch ? parseFloat(versionMatch[1]!) : 0;
     if (version < 3.12) {
-      issues.push(`python = "${spec}" — se requiere ${REQUIRED_PYTHON}`);
+      issues.push(`python = "${spec}" — ${REQUIRED_PYTHON} required`);
     }
   }
 
@@ -45,7 +45,7 @@ export async function checkPyproject(projectPath: string): Promise<CheckResult> 
     return {
       name: "pyproject.toml",
       status: "error",
-      message: `Configuración inválida → ${issues.join(" | ")}`,
+      message: `Invalid configuration → ${issues.join(" | ")}`,
       fixable: true,
       fix: async () => {
         const { applyPyproject } = await import("../../fixer/apply");

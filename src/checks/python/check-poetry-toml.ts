@@ -9,7 +9,7 @@ export async function checkPoetryToml(projectPath: string): Promise<CheckResult>
     return {
       name: "poetry.toml",
       status: "warn",
-      message: "poetry.toml no encontrado — virtualenv creado fuera del proyecto",
+      message: "poetry.toml not found — virtualenv created outside the project",
       fixable: true,
       fix: async () => {
         const { applyPoetryToml } = await import("../../fixer/apply");
@@ -24,7 +24,7 @@ export async function checkPoetryToml(projectPath: string): Promise<CheckResult>
     return {
       name: "poetry.toml",
       status: "warn",
-      message: "virtualenvs.in-project no está habilitado",
+      message: "virtualenvs.in-project is not enabled",
       fixable: true,
       fix: async () => {
         const { applyPoetryToml } = await import("../../fixer/apply");

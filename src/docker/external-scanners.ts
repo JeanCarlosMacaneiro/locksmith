@@ -102,10 +102,10 @@ export function parseHadolintJson(stdout: string, dockerLines: string[]): Docker
     const { kind, severity } = mapHadolintCode(code);
     const remediationGuide = [
       `Hadolint ${code}: ${message}`,
-      `Regla: ${code}`,
+      `Rule: ${code}`,
       `Docs: ${hadolintRuleUrl(code)}`,
-      original ? `Instrucción afectada: ${original}` : "",
-      "Aplica el cambio recomendado por la regla y vuelve a correr el linter.",
+      original ? `Affected instruction: ${original}` : "",
+      "Apply the change recommended by the rule and re-run the linter.",
     ].filter((x) => x !== "").join("\n");
 
     issues.push({
@@ -223,11 +223,11 @@ export function parseTrivyJson(stdout: string): DockerIssue[] {
         : `${cveId} en ${pkg}`;
 
       const remediationGuide = [
-        `Trivy detectó ${cveId} con severidad ${severityRaw}.`,
-        `Paquete: ${pkg}`,
-        fixedVersion ? `Versión con fix: ${fixedVersion}` : "No se informó versión con fix.",
+        `Trivy detected ${cveId} with severity ${severityRaw}.`,
+        `Package: ${pkg}`,
+        fixedVersion ? `Fix version: ${fixedVersion}` : "No fix version reported.",
         `NVD: ${nvdUrl(cveId)}`,
-        "Solución recomendada: actualiza el paquete afectado y/o la imagen base para incluir el fix.",
+        "Recommended fix: update the affected package and/or base image to include the fix.",
       ].join("\n");
 
       issues.push({
@@ -303,11 +303,11 @@ export async function runDockerScout(dockerfilePath: string): Promise<ScannerRes
       parsed = null;
     }
 
-    const description = parsed ? `Docker Scout reportó CVEs para ${image}` : `Docker Scout analizó ${image}`;
+    const description = parsed ? `Docker Scout reported CVEs for ${image}` : `Docker Scout analyzed ${image}`;
     const remediationGuide = [
-      `Docker Scout detectó hallazgos para la imagen base: ${image}`,
-      "Solución recomendada: actualiza la imagen base (FROM) a una versión más reciente y vuelve a escanear.",
-      "Sugerencia: ejecuta `docker scout recommendations <imagen>` para ver tags recomendados.",
+      `Docker Scout detected findings for the base image: ${image}`,
+      "Recommended fix: update the base image (FROM) to a more recent version and re-scan.",
+      "Tip: run `docker scout recommendations <image>` to see recommended tags.",
     ].join("\n");
 
     issues.push({

@@ -7,7 +7,7 @@ const REBUILD_PKGS = ["@electron/rebuild", "electron-rebuild"];
 export async function checkElectronRebuild(projectPath: string): Promise<CheckResult> {
   const pkgPath = join(projectPath, "package.json");
   if (!existsSync(pkgPath)) {
-    return { name: "electron-rebuild", status: "warn", message: "package.json no encontrado" };
+    return { name: "electron-rebuild", status: "warn", message: "package.json not found" };
   }
 
   const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
@@ -20,8 +20,8 @@ export async function checkElectronRebuild(projectPath: string): Promise<CheckRe
     return {
       name: "electron-rebuild",
       status: "warn",
-      message: "@electron/rebuild no encontrado en devDependencies",
-      hint: ["Instala: pnpm add -D @electron/rebuild", "Agrega script explícito: \"rebuild\": \"electron-rebuild\""],
+      message: "@electron/rebuild not found in devDependencies",
+      hint: ["Install: pnpm add -D @electron/rebuild", "Add explicit script: \"rebuild\": \"electron-rebuild\""],
     };
   }
 
@@ -30,15 +30,15 @@ export async function checkElectronRebuild(projectPath: string): Promise<CheckRe
     return {
       name: "electron-rebuild",
       status: "error",
-      message: "electron-rebuild en postinstall — ejecuta sin control al instalar dependencias",
+      message: "electron-rebuild in postinstall — runs uncontrolled on dependency install",
       fixable: true,
       fix: async () => {
         const { applyElectronRebuildFix } = await import("../fixer/apply");
         await applyElectronRebuildFix(projectPath);
       },
       hint: [
-        "Mueve a script explícito: \"rebuild\": \"electron-rebuild\"",
-        "Elimina electron-rebuild del postinstall",
+        "Move to explicit script: \"rebuild\": \"electron-rebuild\"",
+        "Remove electron-rebuild from postinstall",
       ],
     };
   }
@@ -46,6 +46,6 @@ export async function checkElectronRebuild(projectPath: string): Promise<CheckRe
   return {
     name: "electron-rebuild",
     status: "ok",
-    message: "@electron/rebuild configurado — no en postinstall",
+    message: "@electron/rebuild configured — not in postinstall",
   };
 }

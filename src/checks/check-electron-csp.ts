@@ -13,14 +13,14 @@ export async function checkElectronCsp(projectPath: string): Promise<CheckResult
     return {
       name: "electron-csp",
       status: "warn",
-      message: "No se encontró el archivo main de Electron para verificar CSP",
-      hint: ["Configura Content-Security-Policy en el proceso main via session.defaultSession.webRequest.onHeadersReceived"],
+      message: "Electron main file not found to verify CSP",
+      hint: ["Configure Content-Security-Policy in the main process via session.defaultSession.webRequest.onHeadersReceived"],
     };
   }
 
   const mainContent = readFileSync(mainFile, "utf-8");
   if (CSP_PATTERNS.some((p) => mainContent.includes(p))) {
-    return { name: "electron-csp", status: "ok", message: "CSP configurada en proceso main" };
+    return { name: "electron-csp", status: "ok", message: "CSP configured in main process" };
   }
 
   const htmlHasCsp = HTML_CANDIDATES.some((h) => {
@@ -29,17 +29,17 @@ export async function checkElectronCsp(projectPath: string): Promise<CheckResult
   });
 
   if (htmlHasCsp) {
-    return { name: "electron-csp", status: "ok", message: "CSP configurada en HTML del renderer" };
+    return { name: "electron-csp", status: "ok", message: "CSP configured in renderer HTML" };
   }
 
   return {
     name: "electron-csp",
     status: "error",
-    message: "Content Security Policy (CSP) no configurada — permite XSS en el renderer",
+    message: "Content Security Policy (CSP) not configured — allows XSS in the renderer",
     fixable: false,
     hint: [
-      "Agrega en el main process: session.defaultSession.webRequest.onHeadersReceived para inyectar CSP headers",
-      "O usa <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'\"> en el HTML del renderer",
+      "Add in the main process: session.defaultSession.webRequest.onHeadersReceived to inject CSP headers",
+      "Or use <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'\"> in the renderer HTML",
     ],
   };
 }

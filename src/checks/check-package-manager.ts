@@ -8,7 +8,7 @@ const BUN_REGEX  = /^bun@\d+\.\d+\.\d+$/;
 export async function checkPackageManager(projectPath: string, type: ProjectType = "node"): Promise<CheckResult> {
   const pkgPath = join(projectPath, "package.json");
   if (!existsSync(pkgPath)) {
-    return { name: "packageManager", status: "warn", message: "package.json no encontrado" };
+    return { name: "packageManager", status: "warn", message: "package.json not found" };
   }
 
   const pkg   = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
@@ -16,12 +16,12 @@ export async function checkPackageManager(projectPath: string, type: ProjectType
 
   // Bun type: packageManager: "bun@..." is expected (Option B — bun runtime, pnpm packages)
   if (type === "bun") {
-    if (BUN_REGEX.test(field)) return { name: "packageManager", status: "ok", message: `Bun runtime fijado: ${field}` };
+    if (BUN_REGEX.test(field)) return { name: "packageManager", status: "ok", message: `Bun runtime pinned: ${field}` };
     if (!field) {
       return {
         name: "packageManager",
         status: "warn",
-        message: 'Campo "packageManager" ausente en proyecto Bun',
+        message: '"packageManager" field missing in Bun project',
         fixable: true,
         fix: async () => { const { applyPackageManager } = await import("../fixer/apply"); await applyPackageManager(projectPath); },
       };
@@ -30,14 +30,14 @@ export async function checkPackageManager(projectPath: string, type: ProjectType
 
   // npm/yarn: must migrate to pnpm
   if (type === "npm" || type === "yarn") {
-    if (PNPM_REGEX.test(field)) return { name: "packageManager", status: "ok", message: `Versión fijada: ${field}` };
+    if (PNPM_REGEX.test(field)) return { name: "packageManager", status: "ok", message: `Version pinned: ${field}` };
     return {
       name: "packageManager",
       status: "error",
-      message: `Proyecto usa ${type} — se requiere pnpm@11+ para máxima seguridad`,
+      message: `Project uses ${type} — pnpm@11+ required for maximum security`,
       fixable: true,
       fix: async () => { const { migrateToPnpm } = await import("../fixer/migrate-to-pnpm"); await migrateToPnpm(projectPath); },
-      hint: ["Ejecuta locksmith --fix para migrar automáticamente a pnpm 11"],
+      hint: ["Run locksmith --fix to automatically migrate to pnpm 11"],
     };
   }
 
@@ -46,7 +46,7 @@ export async function checkPackageManager(projectPath: string, type: ProjectType
     return {
       name: "packageManager",
       status: "warn",
-      message: 'Campo "packageManager" ausente — versión de pnpm no fijada',
+      message: '"packageManager" field missing — pnpm version not pinned',
       fixable: true,
       fix: async () => { const { applyPackageManager } = await import("../fixer/apply"); await applyPackageManager(projectPath); },
     };
@@ -56,11 +56,11 @@ export async function checkPackageManager(projectPath: string, type: ProjectType
     return {
       name: "packageManager",
       status: "error",
-      message: `Formato inválido o PM incorrecto: "${field}" — debe ser "pnpm@X.Y.Z"`,
+      message: `Invalid format or wrong PM: "${field}" — must be "pnpm@X.Y.Z"`,
       fixable: true,
       fix: async () => { const { applyPackageManager } = await import("../fixer/apply"); await applyPackageManager(projectPath); },
     };
   }
 
-  return { name: "packageManager", status: "ok", message: `Versión fijada: ${field}` };
+  return { name: "packageManager", status: "ok", message: `Version pinned: ${field}` };
 }

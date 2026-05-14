@@ -24,11 +24,11 @@ function parseYarn(output: string): VulnCounts {
 
 function toResult(name: string, v: VulnCounts): CheckResult {
   const total = v.critical + v.high + v.moderate + v.low;
-  if (total === 0) return { name, status: "ok", message: "Sin vulnerabilidades conocidas" };
+  if (total === 0) return { name, status: "ok", message: "No known vulnerabilities" };
   if (v.critical > 0 || v.high > 0) {
-    return { name, status: "error", message: `${v.critical} críticas · ${v.high} altas · ${v.moderate} moderadas · ${v.low} bajas` };
+    return { name, status: "error", message: `${v.critical} critical · ${v.high} high · ${v.moderate} moderate · ${v.low} low` };
   }
-  return { name, status: "warn", message: `${v.moderate} moderadas · ${v.low} bajas` };
+  return { name, status: "warn", message: `${v.moderate} moderate · ${v.low} low` };
 }
 
 export async function checkAudit(projectPath: string, type: ProjectType = "node"): Promise<CheckResult> {
@@ -48,6 +48,6 @@ export async function checkAudit(projectPath: string, type: ProjectType = "node"
     return toResult("pnpm audit", parsePnpmNpm(output));
   } catch {
     const pm = type === "yarn" ? "yarn" : type === "npm" ? "npm" : "pnpm";
-    return { name: `${pm} audit`, status: "warn", message: `No se pudo ejecutar ${pm} audit (¿lockfile presente?)` };
+    return { name: `${pm} audit`, status: "warn", message: `Could not run ${pm} audit (lockfile present?)` };
   }
 }

@@ -34,7 +34,7 @@ export async function checkGitignore(projectPath: string): Promise<CheckResult> 
     return {
       name: ".gitignore",
       status: "error",
-      message: ".gitignore no encontrado — archivos sensibles podrían ser commiteados",
+      message: ".gitignore not found — sensitive files could be committed",
       fixable: true,
       fix: async () => {
         const { applyGitignore } = await import("../fixer/apply");
@@ -52,7 +52,7 @@ export async function checkGitignore(projectPath: string): Promise<CheckResult> 
     return {
       name: ".gitignore",
       status: "warn",
-      message: `Patrones sensibles no ignorados: ${missing.join(", ")}`,
+      message: `Sensitive patterns not ignored: ${missing.join(", ")}`,
       fixable: true,
       fix: async () => {
         const { applyGitignore } = await import("../fixer/apply");
@@ -64,6 +64,6 @@ export async function checkGitignore(projectPath: string): Promise<CheckResult> 
   return {
     name: ".gitignore",
     status: "ok",
-    message: `Patrones sensibles cubiertos: ${REQUIRED_PATTERNS.map((p) => p.label).join(", ")}`,
+    message: `Sensitive patterns covered: ${REQUIRED_PATTERNS.map((p) => p.label).join(", ")}`,
   };
 }

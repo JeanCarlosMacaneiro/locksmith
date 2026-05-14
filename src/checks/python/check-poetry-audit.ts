@@ -15,7 +15,7 @@ export async function checkPoetryAudit(projectPath: string): Promise<CheckResult
       return {
         name: "poetry audit",
         status: "ok",
-        message: "Sin vulnerabilidades conocidas",
+        message: "No known vulnerabilities",
       };
     }
 
@@ -28,20 +28,20 @@ export async function checkPoetryAudit(projectPath: string): Promise<CheckResult
       return {
         name: "poetry audit",
         status: "error",
-        message: `${critical} críticas · ${high} altas · ${moderate} moderadas · ${low} bajas`,
+        message: `${critical} critical · ${high} high · ${moderate} moderate · ${low} low`,
       };
     }
 
     return {
       name: "poetry audit",
       status: "warn",
-      message: `${moderate} moderadas · ${low} bajas`,
+      message: `${moderate} moderate · ${low} low`,
     };
   } catch {
     return {
       name: "poetry audit",
       status: "warn",
-      message: "No se pudo ejecutar poetry audit (¿poetry.lock presente?)",
+      message: "Could not run poetry audit (poetry.lock present?)",
     };
   }
 }

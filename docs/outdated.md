@@ -12,28 +12,28 @@ locksmith --outdated --fix     # Auto-apply safe patch updates
 ## Example output
 
 ```
-📦 Paquetes desactualizados
+📦 Outdated packages
 
-  PATCH  — política: 3d · sin breaking changes
+  PATCH  — policy: 3d · no breaking changes
   ────────────────────────────────────────────────────────────────────────
-  ✓ picocolors   1.1.1 → 1.2.0   publicado hace 5d   ✅ política ok (3d)   $ pnpm update picocolors
-  ⏳ is-odd       3.0.0 → 3.0.1   publicado hace 1d   ⏳ muy reciente (faltan 2d)
+  ✓ picocolors   1.1.1 → 1.2.0   published 5d ago    ✅ policy ok (3d)    $ pnpm update picocolors
+  ⏳ is-odd       3.0.0 → 3.0.1   published 1d ago    ⏳ too recent (waiting 2d)
 
-  MINOR  — política: 7d · nueva funcionalidad — revisar changelog
+  MINOR  — policy: 7d · new functionality — review changelog
   ────────────────────────────────────────────────────────────────────────
-  ✓ yargs        17.7.2 → 18.0.0  publicado hace 12d  ✅ política ok (7d)   $ pnpm update yargs
+  ✓ yargs        17.7.2 → 18.0.0  published 12d ago   ✅ policy ok (7d)    $ pnpm update yargs
 
-  MAJOR  — política: 30d · breaking changes posibles — revisión obligatoria
+  MAJOR  — policy: 30d · possible breaking changes — manual review required
   ────────────────────────────────────────────────────────────────────────
-  ⏳ typescript   5.9.3 → 6.0.2   publicado hace 8d   ⏳ muy reciente (faltan 22d)
+  ⏳ typescript   5.9.3 → 6.0.2   published 8d ago    ⏳ too recent (waiting 22d)
 
-  2 patch(es) listos para --fix · 1 requieren revisión manual · 2 en período de espera
+  2 patch(es) ready for --fix · 1 require manual review · 2 in waiting period
 
-  Patches seguros disponibles → ejecuta con: locksmith . --outdated --fix
+  Safe patches available → run: locksmith . --outdated --fix
 
-  En período de espera:
-    is-odd      disponible en 2d
-    typescript  disponible en 22d
+  Waiting period:
+    is-odd      available in 2d
+    typescript  available in 22d
 ```
 
 ---

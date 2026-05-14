@@ -57,10 +57,10 @@ State resets per `FROM` instruction: `npmrcCopied`, `pnpmInstalled`, `inNodeStag
 ```
 🐳 Dockerfile: Dockerfile
 
-  Problemas encontrados:
-  ⚠  L12  pin-version   pnpm no pinned — versión puede diferir en producción
-  ⚠  L18  missing-flag  pnpm install sin --frozen-lockfile, --ignore-scripts
-  ⚠  L15  missing-copy  .npmrc no copiado antes de pnpm install
+  Issues found:
+  ⚠  L12  pin-version   pnpm version not pinned — version may differ in production
+  ⚠  L18  missing-flag  pnpm install without --frozen-lockfile, --ignore-scripts
+  ⚠  L15  missing-copy  .npmrc not copied before pnpm install
 
-  → ejecuta locksmith --fix-dockerfile para corregir
+  → run locksmith --fix-dockerfile to fix
 ```

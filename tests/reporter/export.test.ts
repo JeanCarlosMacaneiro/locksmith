@@ -54,7 +54,7 @@ describe("exportReport JSON — property tests", () => {
 });
 
 describe("exportReport Markdown — property tests", () => {
-  it("P10: Markdown tem tabelas separadas por sección", async () => {
+  it("P10: Markdown has separate tables per section", async () => {
     await fc.assert(fc.asyncProperty(arbResults, async (results) => {
       await exportReport(results, "markdown", dir);
       const md = readFileSync(join(dir, "security-report.md"), "utf8");
@@ -63,11 +63,11 @@ describe("exportReport Markdown — property tests", () => {
       const hasWarnings = results.some(r => r.status === "warn"  && !r.wasFixed);
       const hasOk      = results.some(r => r.status === "ok" || r.wasFixed);
 
-      if (hasErrors)   expect(md).toContain("## Errores");
-      else             expect(md).not.toContain("## Errores");
+      if (hasErrors)   expect(md).toContain("## Errors");
+      else             expect(md).not.toContain("## Errors");
 
-      if (hasWarnings) expect(md).toContain("## Advertencias");
-      else             expect(md).not.toContain("## Advertencias");
+      if (hasWarnings) expect(md).toContain("## Warnings");
+      else             expect(md).not.toContain("## Warnings");
 
       if (hasOk)       expect(md).toContain("## OK");
       else             expect(md).not.toContain("## OK");
@@ -150,24 +150,24 @@ describe("exportReport JSON — unit tests", () => {
 });
 
 describe("exportReport Markdown — unit tests", () => {
-  it("omite ## Errores si no hay errores", async () => {
+  it("omits ## Errors if no errors", async () => {
     const results: CheckResult[] = [
       { name: "a", status: "ok", message: "o" },
     ];
     await exportReport(results, "markdown", dir);
     const md = readFileSync(join(dir, "security-report.md"), "utf8");
-    expect(md).not.toContain("## Errores");
+    expect(md).not.toContain("## Errors");
     expect(md).toContain("## OK");
   });
 
-  it("omite ## Advertencias si no hay warnings", async () => {
+  it("omits ## Warnings if no warnings", async () => {
     const results: CheckResult[] = [
       { name: "a", status: "error", message: "e" },
     ];
     await exportReport(results, "markdown", dir);
     const md = readFileSync(join(dir, "security-report.md"), "utf8");
-    expect(md).not.toContain("## Advertencias");
-    expect(md).toContain("## Errores");
+    expect(md).not.toContain("## Warnings");
+    expect(md).toContain("## Errors");
   });
 
   it("array vacío no lanza error y no tiene secciones", async () => {
@@ -183,20 +183,20 @@ describe("exportReport Markdown — unit tests", () => {
     await exportReport(results, "markdown", dir);
     const md = readFileSync(join(dir, "security-report.md"), "utf8");
     expect(md).toContain("## OK");
-    expect(md).not.toContain("## Errores");
+    expect(md).not.toContain("## Errors");
     expect(md).toContain("npmrc [fixed]");
   });
 
-  it("cada check aparece en la tabla de su categoría", async () => {
+  it("each check appears in its category table", async () => {
     const results: CheckResult[] = [
-      { name: "err-check", status: "error", message: "falla"      },
-      { name: "wrn-check", status: "warn",  message: "advertencia" },
+      { name: "err-check", status: "error", message: "failure"  },
+      { name: "wrn-check", status: "warn",  message: "warning"  },
       { name: "ok-check",  status: "ok",    message: "ok"          },
     ];
     await exportReport(results, "markdown", dir);
     const md = readFileSync(join(dir, "security-report.md"), "utf8");
-    const errSection  = md.slice(md.indexOf("## Errores"),      md.indexOf("## Advertencias"));
-    const warnSection = md.slice(md.indexOf("## Advertencias"), md.indexOf("## OK"));
+    const errSection  = md.slice(md.indexOf("## Errors"),      md.indexOf("## Warnings"));
+    const warnSection = md.slice(md.indexOf("## Warnings"), md.indexOf("## OK"));
     const okSection   = md.slice(md.indexOf("## OK"));
     expect(errSection).toContain("err-check");
     expect(warnSection).toContain("wrn-check");

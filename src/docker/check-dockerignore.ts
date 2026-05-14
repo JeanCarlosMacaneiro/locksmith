@@ -83,9 +83,9 @@ function listFilesRecursively(projectPath: string, maxEntries: number): string[]
 function buildMissingPatternIssue(pattern: string): DockerIssue {
   const replacement = `${normalizeDockerignoreLine(pattern)}\n`.trimEnd();
   const remediationGuide = [
-    "Falta una entrada crítica en .dockerignore.",
-    "Sin esa exclusión, archivos sensibles pueden incluirse accidentalmente en el contexto de build y terminar dentro de la imagen.",
-    "Agrega esta línea al final de tu .dockerignore:",
+    "A critical entry is missing in .dockerignore.",
+    "Without that exclusion, sensitive files may be accidentally included in the build context and end up inside the image.",
+    "Add this line to the end of your .dockerignore:",
     replacement,
   ].join("\n");
 
@@ -94,7 +94,7 @@ function buildMissingPatternIssue(pattern: string): DockerIssue {
     kind: "missing-copy",
     severity: "medium",
     source: "internal",
-    description: `Entrada faltante en .dockerignore: ${normalizeDockerignoreLine(pattern)}`,
+    description: `Missing entry in .dockerignore: ${normalizeDockerignoreLine(pattern)}`,
     original: ".dockerignore",
     replacement,
     remediationGuide,
@@ -104,9 +104,9 @@ function buildMissingPatternIssue(pattern: string): DockerIssue {
 function buildMissingDockerignoreIssue(): DockerIssue {
   const replacement = generateBaseDockerignore();
   const remediationGuide = [
-    "No existe un archivo .dockerignore en el proyecto.",
-    "Sin .dockerignore, Docker puede copiar credenciales, archivos de entorno y otros artefactos al contexto de build.",
-    "Crea un .dockerignore base seguro con este contenido:",
+    "No .dockerignore file exists in the project.",
+    "Without .dockerignore, Docker may copy credentials, environment files, and other artifacts into the build context.",
+    "Create a secure base .dockerignore with this content:",
     replacement.trimEnd(),
   ].join("\n");
 
@@ -115,7 +115,7 @@ function buildMissingDockerignoreIssue(): DockerIssue {
     kind: "missing-copy",
     severity: "medium",
     source: "internal",
-    description: "Falta .dockerignore — agrega exclusiones de archivos sensibles",
+    description: "Missing .dockerignore — add exclusions for sensitive files",
     original: ".dockerignore (missing)",
     replacement,
     remediationGuide,
@@ -125,9 +125,9 @@ function buildMissingDockerignoreIssue(): DockerIssue {
 function buildExposedSensitiveFileIssue(relPath: string): DockerIssue {
   const replacement = relPath.split("\\").join("/");
   const remediationGuide = [
-    "Se detectó un archivo sensible en el proyecto que no está cubierto por .dockerignore.",
-    "Si Docker copia este archivo al contexto de build, puede terminar en la imagen o filtrarse en capas/cachés.",
-    "Agrega esta línea a .dockerignore para excluirlo:",
+    "A sensitive file was detected in the project that is not covered by .dockerignore.",
+    "If Docker copies this file into the build context, it may end up in the image or leak into layers/caches.",
+    "Add this line to .dockerignore to exclude it:",
     replacement,
   ].join("\n");
 
@@ -136,7 +136,7 @@ function buildExposedSensitiveFileIssue(relPath: string): DockerIssue {
     kind: "missing-copy",
     severity: "high",
     source: "internal",
-    description: `Archivo sensible no ignorado por .dockerignore: ${replacement}`,
+    description: `Sensitive file not excluded by .dockerignore: ${replacement}`,
     original: ".dockerignore",
     replacement,
     remediationGuide,

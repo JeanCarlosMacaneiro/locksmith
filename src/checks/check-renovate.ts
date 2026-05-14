@@ -27,26 +27,26 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
     return {
       name: "renovate.json",
       status: "warn",
-      message: "renovate.json no encontrado — release delay no configurado",
+      message: "renovate.json not found — release delay not configured",
       fixable: true,
       fix: async () => {
         const { applyRenovate } = await import("../fixer/apply");
         await applyRenovate(projectPath);
       },
       hint: [
-        "Renovate es un bot que abre PRs automáticamente cuando hay nuevas versiones de tus dependencias.",
-        "Sin este archivo, las actualizaciones no tienen período de espera y pueden introducir paquetes maliciosos.",
+        "Renovate is a bot that automatically opens PRs when new versions of your dependencies are available.",
+        "Without this file, updates have no waiting period and may introduce malicious packages.",
         "",
-        "Paso 1 — Crear el archivo de configuración:",
+        "Step 1 — Create the configuration file:",
         "  $ locksmith --fix",
         "",
-        "Paso 2 — Instalar Renovate en tu repositorio (solo una vez por organización):",
+        "Step 2 — Install Renovate on your repository (once per organization):",
         "  → GitHub:    https://github.com/apps/renovate",
         "  → GitLab:    https://docs.renovatebot.com/modules/platform/gitlab/",
         "  → Bitbucket: https://docs.renovatebot.com/modules/platform/bitbucket/",
         "",
-        "Una vez instalado, Renovate leerá el renovate.json y abrirá PRs respetando",
-        "los tiempos de espera configurados (patch: 3d · minor: 7d · major: 30d).",
+        "Once installed, Renovate will read renovate.json and open PRs respecting",
+        "the configured wait times (patch: 3d · minor: 7d · major: 30d).",
       ],
     };
   }
@@ -59,13 +59,13 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
     const rule = rules.find((r) => r.matchUpdateTypes?.includes(type));
 
     if (!rule) {
-      issues.push(`falta regla para '${type}'`);
+      issues.push(`missing rule for '${type}'`);
       continue;
     }
 
     const days = parseDays(rule.minimumReleaseAge);
     if (days < minDays) {
-      issues.push(`${type}: ${days}d (mínimo ${minDays}d)`);
+      issues.push(`${type}: ${days}d (minimum ${minDays}d)`);
     }
   }
 
@@ -73,21 +73,21 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
     return {
       name: "renovate.json",
       status: "error",
-      message: `Release delay insuficiente → ${issues.join(" | ")}`,
+      message: `Insufficient release delay → ${issues.join(" | ")}`,
       fixable: true,
       hint: [
-        "El 'minimumReleaseAge' define cuántos días debe esperar Renovate antes de abrir un PR.",
-        "Esto da tiempo para detectar si una nueva versión es maliciosa antes de que entre a tu proyecto.",
+        "'minimumReleaseAge' defines how many days Renovate must wait before opening a PR.",
+        "This gives time to detect whether a new version is malicious before it enters your project.",
         "",
-        "Valores requeridos por política de seguridad:",
-        "  patch  → mínimo 3 días   (ej: corrección de bug, riesgo bajo)",
-        "  minor  → mínimo 7 días   (ej: nueva funcionalidad, riesgo medio)",
-        "  major  → mínimo 30 días  (ej: cambio breaking, riesgo alto)",
+        "Required values by security policy:",
+        "  patch  → minimum 3 days   (e.g. bug fix, low risk)",
+        "  minor  → minimum 7 days   (e.g. new feature, medium risk)",
+        "  major  → minimum 30 days  (e.g. breaking change, high risk)",
         "",
-        "Para corregir automáticamente con los valores correctos:",
+        "To fix automatically with the correct values:",
         "  $ locksmith --fix",
         "",
-        "O edita manualmente tu renovate.json:",
+        "Or edit your renovate.json manually:",
         `  { "matchUpdateTypes": ["patch"], "minimumReleaseAge": "3 days", "automerge": false }`,
         `  { "matchUpdateTypes": ["minor"], "minimumReleaseAge": "7 days", "automerge": false }`,
         `  { "matchUpdateTypes": ["major"], "minimumReleaseAge": "30 days", "automerge": false }`,
@@ -100,16 +100,16 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
     status: "ok",
     message: "Release delay: patch 3d · minor 7d · major 30d",
     hint: [
-      "Renovate abrirá PRs automáticamente cuando haya actualizaciones disponibles.",
-      "Cada PR esperará el tiempo configurado antes de poder mergearse:",
-      "  patch  → 3 días   → requiere aprobación manual",
-      "  minor  → 7 días   → requiere aprobación manual",
-      "  major  → 30 días  → requiere aprobación manual",
+      "Renovate will automatically open PRs when updates are available.",
+      "Each PR will wait the configured time before it can be merged:",
+      "  patch  → 3 days   → requires manual approval",
+      "  minor  → 7 days   → requires manual approval",
+      "  major  → 30 days  → requires manual approval",
       "",
-      "Para actualizar una dependencia manualmente sin esperar a Renovate:",
-      "  $ pnpm update <paquete>          → actualiza a la última versión permitida",
-      "  $ pnpm update <paquete> --latest → actualiza ignorando rangos de versión",
-      "  $ pnpm add <paquete>@<version>   → instala una versión específica",
+      "To update a dependency manually without waiting for Renovate:",
+      "  $ pnpm update <package>          → update to the latest allowed version",
+      "  $ pnpm update <package> --latest → update ignoring version ranges",
+      "  $ pnpm add <package>@<version>   → install a specific version",
     ],
   };
 }

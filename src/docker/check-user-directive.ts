@@ -21,13 +21,13 @@ function isRootUser(userValue: string): boolean {
 
 function buildMissingUserIssue(anchorLine: number, anchorOriginal: string): DockerIssue {
   const remediationGuide = [
-    "El stage final del Dockerfile no configura un usuario no-root.",
-    "Por defecto, los contenedores corren como root y un compromiso dentro del contenedor aumenta el impacto.",
-    "Solución recomendada: crea un usuario y cámbiate a él antes del CMD/ENTRYPOINT final.",
-    "Ejemplos:",
+    "The final Dockerfile stage does not configure a non-root user.",
+    "By default, containers run as root and a compromise inside the container increases the impact.",
+    "Recommended fix: create a user and switch to it before the final CMD/ENTRYPOINT.",
+    "Examples:",
     "Alpine: RUN adduser -D appuser && chown -R appuser:appuser /app",
     "Debian/Ubuntu: RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app",
-    "Luego: USER appuser",
+    "Then: USER appuser",
   ].join("\n");
 
   return {
@@ -35,7 +35,7 @@ function buildMissingUserIssue(anchorLine: number, anchorOriginal: string): Dock
     kind: "missing-cmd",
     severity: "high",
     source: "internal",
-    description: "El contenedor corre como root (USER no-root faltante en el stage final)",
+    description: "Container runs as root (non-root USER missing in the final stage)",
     original: anchorOriginal,
     replacement: null,
     remediationGuide,
@@ -44,11 +44,11 @@ function buildMissingUserIssue(anchorLine: number, anchorOriginal: string): Dock
 
 function buildExplicitRootUserIssue(lineNum: number, original: string): DockerIssue {
   const remediationGuide = [
-    "El stage final del Dockerfile configura explícitamente USER root/0.",
-    "Correr como root aumenta la superficie de ataque en caso de compromiso del contenedor.",
-    "Solución recomendada: crea un usuario no-root y usa USER <usuario> antes del CMD/ENTRYPOINT final.",
-    "Ejemplo (Alpine): RUN adduser -D appuser && chown -R appuser:appuser /app",
-    "Luego: USER appuser",
+    "The final Dockerfile stage explicitly sets USER root/0.",
+    "Running as root increases the attack surface in case of container compromise.",
+    "Recommended fix: create a non-root user and use USER <user> before the final CMD/ENTRYPOINT.",
+    "Example (Alpine): RUN adduser -D appuser && chown -R appuser:appuser /app",
+    "Then: USER appuser",
   ].join("\n");
 
   return {
@@ -56,7 +56,7 @@ function buildExplicitRootUserIssue(lineNum: number, original: string): DockerIs
     kind: "missing-cmd",
     severity: "high",
     source: "internal",
-    description: "El contenedor corre explícitamente como root (USER root/0 en el stage final)",
+    description: "Container explicitly runs as root (USER root/0 in the final stage)",
     original,
     replacement: null,
     remediationGuide,

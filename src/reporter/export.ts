@@ -49,32 +49,32 @@ export async function exportReport(
     };
     const path = join(projectPath, "security-report.json");
     writeFileSync(path, JSON.stringify(out, null, 2));
-    console.log(pc.green(`✓ Reporte JSON exportado → ${path}`));
+    console.log(pc.green(`✓ JSON report exported → ${path}`));
   }
 
   if (format === "markdown") {
     const icon: Record<string, string> = { ok: "✅", warn: "⚠️", error: "❌" };
-    let md = `# Security Report\n> Generado: ${new Date().toISOString()}\n`;
+    let md = `# Security Report\n> Generated: ${new Date().toISOString()}\n`;
 
     if (errors.length > 0) {
       const rows = errors.map(r => `| ${icon.error} | ${r.name} | ${r.message} |`).join("\n");
-      md += `\n## Errores\n| Estado | Check | Detalle |\n|--------|-------|------|\n${rows}\n`;
+      md += `\n## Errors\n| Status | Check | Details |\n|--------|-------|------|\n${rows}\n`;
     }
 
     if (warnings.length > 0) {
       const rows = warnings.map(r => `| ${icon.warn} | ${r.name} | ${r.message} |`).join("\n");
-      md += `\n## Advertencias\n| Estado | Check | Detalle |\n|--------|-------|------|\n${rows}\n`;
+      md += `\n## Warnings\n| Status | Check | Details |\n|--------|-------|------|\n${rows}\n`;
     }
 
     if (allOk.length > 0) {
       const rows = allOk.map(r =>
         `| ${icon.ok} | ${r.name}${r.wasFixed ? " [fixed]" : ""} | ${r.message} |`
       ).join("\n");
-      md += `\n## OK\n| Estado | Check | Detalle |\n|--------|-------|------|\n${rows}\n`;
+      md += `\n## OK\n| Status | Check | Details |\n|--------|-------|------|\n${rows}\n`;
     }
 
     const path = join(projectPath, "security-report.md");
     writeFileSync(path, md);
-    console.log(pc.green(`✓ Reporte Markdown exportado → ${path}`));
+    console.log(pc.green(`✓ Markdown report exported → ${path}`));
   }
 }

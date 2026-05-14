@@ -32,7 +32,7 @@ const PATTERNS: SecretPattern[] = [
     severity: "error",
   },
   {
-    name: "secret hardcodeado",
+    name: "hardcoded secret",
     // Matches: password = "actualValue" but avoids placeholders, env refs, test values
     regex: /(?:password|passwd|secret|api[_-]?key|auth[_-]?token)\s*[:=]\s*["'](?![^"']*(?:your[_-]|example|test|demo|placeholder|<|\$\{|process\.env))[^"']{12,}["']/i,
     severity: "warn",
@@ -125,7 +125,7 @@ export async function checkSecrets(projectPath: string): Promise<CheckResult> {
     return {
       name: "secrets scan",
       status: "ok",
-      message: "Sin secrets detectados en el código fuente",
+      message: "No secrets detected in source code",
     };
   }
 
@@ -135,27 +135,27 @@ export async function checkSecrets(projectPath: string): Promise<CheckResult> {
   // Build location table for hint
   const locationLines = findings.map((f) => {
     const fileCol = f.file.padEnd(40);
-    const lineCol = `línea ${f.line}`.padEnd(12);
+    const lineCol = `line ${f.line}`.padEnd(12);
     return `  ${fileCol}  ${lineCol}  ${f.patternName}`;
   });
 
   return {
     name: "secrets scan",
     status: hasErrors ? "error" : "warn",
-    message: `${count} posible${count !== 1 ? "s" : ""} secret${count !== 1 ? "s" : ""} detectado${count !== 1 ? "s" : ""}`,
+    message: `${count} possible secret${count !== 1 ? "s" : ""} detected`,
     fixable: false,
     hint: [
-      "Secrets hardcodeados encontrados:",
+      "Hardcoded secrets found:",
       "",
       ...locationLines,
       "",
-      "Los secrets no deben existir en el repositorio — usa variables de entorno.",
+      "Secrets must not exist in the repository — use environment variables.",
       "",
-      "Pasos recomendados:",
-      "  1. Revocar/rotar inmediatamente cualquier credencial expuesta",
-      "  2. Mover los valores a variables de entorno (.env)",
-      "  3. Asegurarse de que .env esté en .gitignore",
-      "  4. Limpiar el historial de git si el secret ya fue commiteado:",
+      "Recommended steps:",
+      "  1. Immediately revoke/rotate any exposed credentials",
+      "  2. Move values to environment variables (.env)",
+      "  3. Make sure .env is in .gitignore",
+      "  4. Clean git history if the secret was already committed:",
       "     → https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository",
     ],
   };

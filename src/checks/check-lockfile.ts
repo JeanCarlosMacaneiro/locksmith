@@ -9,25 +9,25 @@ export async function checkLockfile(projectPath: string, type: ProjectType = "no
     const file = Bun.file(lockPath);
     const size = file.size;
     if (size < 50) {
-      return { name: "pnpm-lock.yaml", status: "warn", message: "pnpm-lock.yaml parece vacío o corrupto" };
+      return { name: "pnpm-lock.yaml", status: "warn", message: "pnpm-lock.yaml appears empty or corrupt" };
     }
-    return { name: "pnpm-lock.yaml", status: "ok", message: `Lockfile presente (${(size / 1024).toFixed(1)} KB)` };
+    return { name: "pnpm-lock.yaml", status: "ok", message: `Lockfile present (${(size / 1024).toFixed(1)} KB)` };
   }
 
-  const sourceNote = type === "npm"  ? " — package-lock.json detectado, ejecuta --fix para migrar a pnpm"
-    : type === "yarn"                ? " — yarn.lock detectado, ejecuta --fix para migrar a pnpm"
-    : type === "bun"                 ? " — bun.lock detectado, ejecuta --fix para usar pnpm como gestor de paquetes"
+  const sourceNote = type === "npm"  ? " — package-lock.json detected, run --fix to migrate to pnpm"
+    : type === "yarn"                ? " — yarn.lock detected, run --fix to migrate to pnpm"
+    : type === "bun"                 ? " — bun.lock detected, run --fix to use pnpm as package manager"
     : "";
 
   return {
     name: "pnpm-lock.yaml",
     status: "error",
-    message: `pnpm-lock.yaml no encontrado${sourceNote}`,
+    message: `pnpm-lock.yaml not found${sourceNote}`,
     fixable: true,
     fix: async () => {
       const { migrateToPnpm } = await import("../fixer/migrate-to-pnpm");
       await migrateToPnpm(projectPath);
     },
-    hint: ["Ejecuta locksmith --fix para migrar automáticamente a pnpm 11"],
+    hint: ["Run locksmith --fix to automatically migrate to pnpm 11"],
   };
 }

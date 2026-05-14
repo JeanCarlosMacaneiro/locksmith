@@ -37,9 +37,9 @@ function hasApkNoCache(trimmed: string): boolean {
 
 function buildCopyBeforeInstallIssue(lineNum: number, original: string): DockerIssue {
   const remediationGuide = [
-    "Se copia el código fuente completo antes de instalar dependencias.",
-    "Esto invalida el cache de Docker en cada cambio de código y ralentiza builds.",
-    "Solución recomendada: copia primero solo manifests/lockfiles, instala dependencias, y recién luego copia el resto del código.",
+    "The full source code is copied before installing dependencies.",
+    "This invalidates Docker cache on every code change and slows down builds.",
+    "Recommended fix: first copy only manifests/lockfiles, install dependencies, then copy the rest of the code.",
   ].join("\n");
 
   return {
@@ -47,7 +47,7 @@ function buildCopyBeforeInstallIssue(lineNum: number, original: string): DockerI
     kind: "advisory",
     severity: "medium",
     source: "internal",
-    description: "Layer caching ineficiente: COPY . ... antes de instalar dependencias en el mismo stage",
+    description: "Inefficient layer caching: COPY . ... before installing dependencies in the same stage",
     original,
     replacement: null,
     remediationGuide,
@@ -57,16 +57,16 @@ function buildCopyBeforeInstallIssue(lineNum: number, original: string): DockerI
 function buildPackageCleanupIssue(lineNum: number, original: string, manager: "apt" | "apk"): DockerIssue {
   const remediationGuide = manager === "apt"
     ? [
-      "Se detectó apt-get install sin cleanup en la misma capa RUN.",
-      "Esto deja cachés de APT dentro de la imagen, aumentando tamaño y superficie de ataque.",
-      "Solución recomendada: agrega el cleanup en el mismo RUN. Ejemplo:",
-      "RUN apt-get update && apt-get install -y --no-install-recommends <paquetes> && rm -rf /var/lib/apt/lists/*",
+      "apt-get install detected without cleanup in the same RUN layer.",
+      "This leaves APT caches inside the image, increasing size and attack surface.",
+      "Recommended fix: add the cleanup in the same RUN. Example:",
+      "RUN apt-get update && apt-get install -y --no-install-recommends <packages> && rm -rf /var/lib/apt/lists/*",
     ].join("\n")
     : [
-      "Se detectó apk add sin --no-cache.",
-      "Esto deja cachés de APK dentro de la imagen, aumentando tamaño y superficie de ataque.",
-      "Solución recomendada: agrega --no-cache. Ejemplo:",
-      "RUN apk add --no-cache <paquetes>",
+      "apk add detected without --no-cache.",
+      "This leaves APK caches inside the image, increasing size and attack surface.",
+      "Recommended fix: add --no-cache. Example:",
+      "RUN apk add --no-cache <packages>",
     ].join("\n");
 
   return {
@@ -75,8 +75,8 @@ function buildPackageCleanupIssue(lineNum: number, original: string, manager: "a
     severity: "medium",
     source: "internal",
     description: manager === "apt"
-      ? "apt-get install sin cleanup en el mismo RUN"
-      : "apk add sin --no-cache",
+      ? "apt-get install without cleanup in the same RUN"
+      : "apk add without --no-cache",
     original,
     replacement: null,
     remediationGuide,
@@ -85,9 +85,9 @@ function buildPackageCleanupIssue(lineNum: number, original: string, manager: "a
 
 function buildConsecutiveRunIssue(lineNum: number, original: string): DockerIssue {
   const remediationGuide = [
-    "Se detectaron múltiples instrucciones RUN consecutivas que podrían combinarse.",
-    "Combinar RUN reduce el número de capas y puede mejorar el cache/tiempo de build.",
-    "Solución recomendada: une comandos relacionados en un único RUN usando && y/o \\ para multiline.",
+    "Multiple consecutive RUN instructions detected that could be combined.",
+    "Combining RUN reduces the number of layers and can improve cache/build time.",
+    "Recommended fix: join related commands into a single RUN using && and/or \\ for multiline.",
   ].join("\n");
 
   return {
@@ -95,7 +95,7 @@ function buildConsecutiveRunIssue(lineNum: number, original: string): DockerIssu
     kind: "advisory",
     severity: "low",
     source: "internal",
-    description: "Múltiples RUN consecutivos combinables",
+    description: "Multiple consecutive combinable RUN instructions",
     original,
     replacement: null,
     remediationGuide,

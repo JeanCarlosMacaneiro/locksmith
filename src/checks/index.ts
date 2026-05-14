@@ -101,17 +101,17 @@ async function runDockerfileFlow(
 
 export async function runAllChecks(opts: RunOptions) {
   console.log(pc.bold("\n🔐 locksmith\n"));
-  console.log(pc.dim(`   Analizando: ${opts.projectPath}\n`));
+  console.log(pc.dim(`   Analyzing: ${opts.projectPath}\n`));
 
   const project = await detectProject(opts.projectPath);
 
   if (!project.valid) {
-    console.error(pc.red("✗ No se encontró package.json ni pyproject.toml en este directorio."));
+    console.error(pc.red("✗ package.json or pyproject.toml not found in this directory."));
     process.exit(1);
   }
 
   console.log(
-    pc.green(`✓ Proyecto: ${pc.bold(project.name)} [${project.type}]\n`)
+    pc.green(`✓ Project: ${pc.bold(project.name)} [${project.type}]\n`)
   );
 
   if ((opts.fixDockerfile || opts.fixDocker) && !opts.fix) {
@@ -128,7 +128,7 @@ export async function runAllChecks(opts: RunOptions) {
   if (opts.fix) {
     await applyFixes(results, opts.projectPath);
 
-    console.log(pc.bold("\n🔄 Verificando resultado...\n"));
+    console.log(pc.bold("\n🔄 Verifying result...\n"));
 
     const reResults = (await runChecks(opts.projectPath, project.type))
       .map((r, i) => {
@@ -144,7 +144,7 @@ export async function runAllChecks(opts: RunOptions) {
     }
 
     if (opts.outdated) {
-      console.log(pc.bold("\n🔍 Verificando paquetes desactualizados...\n"));
+      console.log(pc.bold("\n🔍 Checking outdated packages...\n"));
       await runOutdated(opts.projectPath, project.type, true);
     }
 
@@ -162,7 +162,7 @@ export async function runAllChecks(opts: RunOptions) {
   }
 
   if (opts.outdated) {
-    console.log(pc.bold("\n🔍 Verificando paquetes desactualizados...\n"));
+    console.log(pc.bold("\n🔍 Checking outdated packages...\n"));
     await runOutdated(opts.projectPath, project.type, opts.fix);
   }
 

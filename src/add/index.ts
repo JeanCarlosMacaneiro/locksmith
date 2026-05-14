@@ -10,9 +10,9 @@ import { determineRiskLevel, printReport } from "./security-report";
 import { installPackage, updatePackage } from "./installer";
 
 async function confirm(question: string): Promise<boolean> {
-  process.stdout.write(question + " [s/N] ");
+  process.stdout.write(question + " [y/N] ");
   for await (const line of console) {
-    return line.trim().toLowerCase() === "s";
+    return line.trim().toLowerCase() === "y";
   }
   return false;
 }
@@ -22,12 +22,12 @@ async function runSafeCommand(
   command: "add" | "update",
 ): Promise<void> {
   if (!existsSync(join(opts.projectPath, "package.json"))) {
-    console.error(pc.red("✗ No se encontró package.json en el directorio del proyecto."));
+    console.error(pc.red("✗ package.json not found in the project directory."));
     process.exit(1);
   }
 
   if (!existsSync(join(opts.projectPath, "pnpm-lock.yaml"))) {
-    process.stderr.write(pc.yellow("⚠ pnpm-lock.yaml no encontrado. El proyecto puede no tener lockfile.\n"));
+    process.stderr.write(pc.yellow("⚠ pnpm-lock.yaml not found. The project may not have a lockfile.\n"));
   }
 
   let resolvedVersion: string;
@@ -36,11 +36,11 @@ async function runSafeCommand(
   } catch (err) {
     if (err instanceof RegistryError) {
       if (err.code === "not_found") {
-        console.error(pc.red(`✗ Paquete no encontrado en el registry: ${opts.package}`));
+        console.error(pc.red(`✗ Package not found in registry: ${opts.package}`));
       } else if (err.code === "timeout") {
-        console.error(pc.red(`✗ Timeout al consultar el registry npm (>10s).`));
+        console.error(pc.red(`✗ Timeout querying the npm registry (>10s).`));
       } else {
-        console.error(pc.red(`✗ Error de red al consultar el registry: ${err.message}`));
+        console.error(pc.red(`✗ Network error querying the registry: ${err.message}`));
       }
       process.exit(1);
     }
@@ -53,11 +53,11 @@ async function runSafeCommand(
   } catch (err) {
     if (err instanceof RegistryError) {
       if (err.code === "not_found") {
-        console.error(pc.red(`✗ Paquete no encontrado: ${opts.package}@${resolvedVersion}`));
+        console.error(pc.red(`✗ Package not found: ${opts.package}@${resolvedVersion}`));
       } else if (err.code === "timeout") {
-        console.error(pc.red(`✗ Timeout al obtener package.json del registry.`));
+        console.error(pc.red(`✗ Timeout fetching package.json from registry.`));
       } else {
-        console.error(pc.red(`✗ Error de red: ${err.message}`));
+        console.error(pc.red(`✗ Network error: ${err.message}`));
       }
       process.exit(1);
     }
@@ -95,20 +95,20 @@ async function runSafeCommand(
   printReport(info);
 
   if (riskLevel === "critical") {
-    console.error(pc.red("✗ Instalación bloqueada: riesgo crítico (malware) detectado."));
+    console.error(pc.red("✗ Installation blocked: critical risk (malware) detected."));
     process.exit(1);
   }
 
   if (riskLevel === "medium" && !opts.force) {
-    const ok = await confirm(pc.yellow("⚠ Se detectaron scripts peligrosos. ¿Desea continuar con la instalación?"));
+    const ok = await confirm(pc.yellow("⚠ Dangerous scripts detected. Do you want to continue with the installation?"));
     if (!ok) {
-      console.log(pc.dim("Instalación cancelada por el usuario."));
+      console.log(pc.dim("Installation cancelled by the user."));
       process.exit(0);
     }
   }
 
   if (opts.dryRun) {
-    console.log(pc.dim(`\n[dry-run] La instalación no fue ejecutada. Versión analizada: ${resolvedVersion}`));
+    console.log(pc.dim(`\n[dry-run] Installation was not executed. Analyzed version: ${resolvedVersion}`));
     process.exit(0);
   }
 
@@ -118,9 +118,9 @@ async function runSafeCommand(
     } else {
       await updatePackage(opts.package, resolvedVersion, opts.projectPath);
     }
-    console.log(pc.green(`✓ ${opts.package}@${resolvedVersion} instalado correctamente.`));
+    console.log(pc.green(`✓ ${opts.package}@${resolvedVersion} installed successfully.`));
   } catch (err) {
-    console.error(pc.red(`✗ Error al ejecutar pnpm: ${String(err)}`));
+    console.error(pc.red(`✗ Error running pnpm: ${String(err)}`));
     process.exit(1);
   }
 }

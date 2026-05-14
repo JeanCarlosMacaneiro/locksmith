@@ -27,7 +27,7 @@ export function createFixTool(deps = {
         if (!project.valid) {
           const output: McpErrorOutput = {
             error: "PROJECT_NOT_FOUND",
-            message: `No se encontró package.json ni pyproject.toml en: ${projectPath}`,
+            message: `package.json or pyproject.toml not found in: ${projectPath}`,
           };
           return { content: [{ type: "text", text: JSON.stringify(output) }] };
         }

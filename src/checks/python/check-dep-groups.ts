@@ -16,7 +16,7 @@ export async function checkDepGroups(projectPath: string): Promise<CheckResult> 
   const pyprojectPath = join(projectPath, "pyproject.toml");
 
   if (!existsSync(pyprojectPath)) {
-    return { name: "dependency groups", status: "warn", message: "pyproject.toml no encontrado" };
+    return { name: "dependency groups", status: "warn", message: "pyproject.toml not found" };
   }
 
   const content = readFileSync(pyprojectPath, "utf-8");
@@ -29,7 +29,7 @@ export async function checkDepGroups(projectPath: string): Promise<CheckResult> 
     return {
       name: "dependency groups",
       status: "warn",
-      message: "Sin grupo dev — dependencias de desarrollo mezcladas con producción",
+      message: "No dev group — dev dependencies mixed with production",
       fixable: true,
       fix: async () => {
         const { applyDepGroups } = await import("../../fixer/apply");
@@ -48,7 +48,7 @@ export async function checkDepGroups(projectPath: string): Promise<CheckResult> 
     return {
       name: "dependency groups",
       status: "warn",
-      message: `Paquetes dev en producción: ${misplacedPkgs.join(", ")}`,
+      message: `Dev packages in production: ${misplacedPkgs.join(", ")}`,
       fixable: true,
       fix: async () => {
         const { applyDepGroups } = await import("../../fixer/apply");
@@ -70,6 +70,6 @@ export async function checkDepGroups(projectPath: string): Promise<CheckResult> 
   return {
     name: "dependency groups",
     status: "ok",
-    message: `dev: ${devCount} paquetes · prod: ${prodCount} paquetes`,
+    message: `dev: ${devCount} packages · prod: ${prodCount} packages`,
   };
 }

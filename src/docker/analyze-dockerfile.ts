@@ -71,7 +71,7 @@ function checkFromNodeVersion(trimmed: string, lineNum: number, issues: DockerIs
   // Fix lowercase 'as' stage alias → 'AS'
   if (/\s+as\s+\S/.test(fixed)) {
     fixed = fixed.replace(/(\s+as)(\s+)/, (m) => m.replace("as", "AS"));
-    reasons.push("'as' → 'AS'");
+    reasons.push("'as' → 'AS' (normalized)");
   }
 
   const tag = match[2];
@@ -80,7 +80,7 @@ function checkFromNodeVersion(trimmed: string, lineNum: number, issues: DockerIs
     fixed = tag === "latest"
       ? fixed.replace("node:latest", "node:20-alpine")
       : fixed.replace(/\bnode\b(?!:)/, "node:20-alpine");
-    reasons.push("sin versión LTS explícita");
+    reasons.push("no explicit LTS version");
   } else if (!/^(?:lts|current)/.test(tag)) {
     const versionMatch = tag.match(/^(\d+)(.*)/);
     if (versionMatch) {
@@ -91,7 +91,7 @@ function checkFromNodeVersion(trimmed: string, lineNum: number, issues: DockerIs
         const newTag = `20${suffix}`;
         const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         fixed = fixed.replace(new RegExp(`node:${escapedTag}`), `node:${newTag}`);
-        reasons.push(`Node ${major} EOL, actualizar a Node 20`);
+        reasons.push(`Node ${major} EOL, upgrade to Node 20`);
       }
     }
   }
@@ -157,7 +157,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
       issues.push({
         line: lineNum,
         kind: "pin-version",
-        description: "pnpm no pinned — versión puede diferir en producción",
+        description: "pnpm not pinned — version may differ in production",
         original: trimmed,
         replacement: pnpmVersion
           ? trimmed.replace(/\bpnpm\b(?!@)/, `pnpm@${pnpmVersion}`)
@@ -170,7 +170,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
       issues.push({
         line: lineNum,
         kind: "pin-version",
-        description: "corepack prepare pnpm sin versión pinned",
+        description: "corepack prepare pnpm without pinned version",
         original: trimmed,
         replacement: pnpmVersion
           ? trimmed.replace(/\bpnpm\b(?!@)/, `pnpm@${pnpmVersion}`)
@@ -184,7 +184,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-cmd",
-          description: "pnpm no instalado en este stage — falta corepack enable o npm install -g pnpm@X",
+          description: "pnpm not installed in this stage — missing corepack enable or npm install -g pnpm@X",
           original: trimmed,
           replacement: "RUN corepack enable",
         });
@@ -195,7 +195,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-copy",
-          description: ".npmrc no copiado antes de pnpm install — reglas de seguridad no aplican en build",
+          description: ".npmrc not copied before pnpm install — security rules do not apply in build",
           original: trimmed,
           replacement: "COPY .npmrc .",
         });
@@ -206,7 +206,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-copy",
-          description: "pnpm-lock.yaml no copiado — pnpm install --frozen-lockfile falla sin lockfile",
+          description: "pnpm-lock.yaml not copied — pnpm install --frozen-lockfile fails without lockfile",
           original: trimmed,
           replacement: "COPY pnpm-lock.yaml .",
         });
@@ -217,7 +217,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-cmd",
-          description: "ENV CI=true faltante — pnpm falla sin TTY en CI/Docker (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)",
+          description: "ENV CI=true missing — pnpm fails without TTY in CI/Docker (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)",
           original: trimmed,
           replacement: "ENV CI=true",
         });
@@ -232,7 +232,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-flag",
-          description: `pnpm install sin ${missing.join(", ")}`,
+          description: `pnpm install without ${missing.join(", ")}`,
           original: trimmed,
           replacement: `${trimmed} ${missing.join(" ")}`,
         });
@@ -252,7 +252,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-cmd",
-          description: "pnpm no instalado en este stage — falta corepack enable o npm install -g pnpm@X",
+          description: "pnpm not installed in this stage — missing corepack enable or npm install -g pnpm@X",
           original: trimmed,
           replacement: "RUN corepack enable",
         });
@@ -262,7 +262,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-copy",
-          description: ".npmrc no copiado antes de pnpm install — reglas de seguridad no aplican en build",
+          description: ".npmrc not copied before pnpm install — security rules do not apply in build",
           original: trimmed,
           replacement: "COPY .npmrc .",
         });
@@ -272,7 +272,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-copy",
-          description: "pnpm-lock.yaml no copiado — pnpm install --frozen-lockfile falla sin lockfile",
+          description: "pnpm-lock.yaml not copied — pnpm install --frozen-lockfile fails without lockfile",
           original: trimmed,
           replacement: "COPY pnpm-lock.yaml .",
         });
@@ -282,7 +282,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-cmd",
-          description: "ENV CI=true faltante — pnpm falla sin TTY en CI/Docker (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)",
+          description: "ENV CI=true missing — pnpm fails without TTY in CI/Docker (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY)",
           original: trimmed,
           replacement: "ENV CI=true",
         });
@@ -291,7 +291,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
       issues.push({
         line: lineNum,
         kind: "missing-flag",
-        description: "proyecto usa pnpm pero Dockerfile usa npm — usa pnpm install",
+        description: "project uses pnpm but Dockerfile uses npm — use pnpm install",
         original: trimmed,
         replacement: trimmed.replace(
           /\bnpm\s+(?:install|i|ci)\b(?:\s+--\S+)*/,
@@ -311,7 +311,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
       issues.push({
         line: lineNum,
         kind: "missing-flag",
-        description: "npm install no reproduce builds deterministas — usa npm ci",
+        description: "npm install does not reproduce deterministic builds — use npm ci",
         original: trimmed,
         replacement: trimmed.replace(/\bnpm\s+(?:install|i)\b/, "npm ci"),
       });
@@ -323,7 +323,7 @@ function analyzeNodeLines(lines: string[], issues: DockerIssue[], pnpmVersion?: 
         issues.push({
           line: lineNum,
           kind: "missing-flag",
-          description: "npm ci sin --ignore-scripts — postinstall scripts corren en build",
+          description: "npm ci without --ignore-scripts — postinstall scripts run in build",
           original: trimmed,
           replacement: `${trimmed} --ignore-scripts`,
         });
@@ -354,7 +354,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
         issues.push({
           line: lineNum,
           kind: "missing-flag",
-          description: "proyecto usa Poetry pero Dockerfile usa pip — usa poetry install",
+          description: "project uses Poetry but Dockerfile uses pip — use poetry install",
           original: trimmed,
           replacement: "RUN poetry install --no-interaction --no-root",
         });
@@ -365,7 +365,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
         issues.push({
           line: lineNum,
           kind: "missing-flag",
-          description: "pip install sin --no-cache-dir — imagen más pesada",
+          description: "pip install without --no-cache-dir — larger image size",
           original: trimmed,
           replacement: trimmed.replace(/\bpip\s+install\b/, "pip install --no-cache-dir"),
         });
@@ -375,7 +375,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
         issues.push({
           line: lineNum,
           kind: "advisory",
-          description: "pip install -r requirements.txt — considera migrar a Poetry para lockfile reproducible",
+          description: "pip install -r requirements.txt — consider migrating to Poetry for a reproducible lockfile",
           original: trimmed,
           replacement: null,
         });
@@ -388,7 +388,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
         issues.push({
           line: lineNum,
           kind: "missing-copy",
-          description: ".python-version no copiado antes de poetry install — versión Python puede ser incorrecta en build",
+          description: ".python-version not copied before poetry install — Python version may be incorrect in build",
           original: trimmed,
           replacement: "COPY .python-version .",
         });
@@ -399,7 +399,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
         issues.push({
           line: lineNum,
           kind: "missing-copy",
-          description: "poetry.toml no copiado antes de poetry install — virtualenv puede no ser in-project",
+          description: "poetry.toml not copied before poetry install — virtualenv may not be in-project",
           original: trimmed,
           replacement: "COPY poetry.toml .",
         });
@@ -414,7 +414,7 @@ function analyzePythonLines(lines: string[], issues: DockerIssue[], isPoetry?: b
         issues.push({
           line: lineNum,
           kind: "missing-flag",
-          description: `poetry install sin ${missing.join(", ")}`,
+          description: `poetry install without ${missing.join(", ")}`,
           original: trimmed,
           replacement: `${trimmed} ${missing.join(" ")}`,
         });
@@ -476,13 +476,13 @@ function defaultSeverityForKind(kind: DockerIssue["kind"]): "critical" | "high" 
 function buildDefaultRemediationGuide(issue: DockerIssue): string {
   const base = [
     issue.description,
-    issue.replacement !== null ? "Ejemplo de corrección:" : "Corrección recomendada: revisa la instrucción y aplica buenas prácticas.",
+    issue.replacement !== null ? "Fix example:" : "Recommended fix: review the instruction and apply best practices.",
     issue.replacement !== null ? issue.replacement : "",
   ]
     .filter((x) => x !== "")
     .join("\n");
 
-  return base.trim() === "" ? "Revisa este issue y aplica la remediación recomendada." : base;
+  return base.trim() === "" ? "Review this issue and apply the recommended remediation." : base;
 }
 
 function enrichIssues(issues: DockerIssue[]): void {

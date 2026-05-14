@@ -21,7 +21,7 @@ describe("docker-security-layer — check-user-directive", () => {
     );
   });
 
-  it("Property 10: USER no-root suprime advisory de USER directive", () => {
+  it("Property 10: non-root USER suppresses USER directive advisory", () => {
     fc.assert(
       fc.property(
         fc.string({ minLength: 1 }).filter((s) => s !== "root" && s !== "0" && !/\s/.test(s)),

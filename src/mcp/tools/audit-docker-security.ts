@@ -14,10 +14,10 @@ function buildLlmFixInstructions(issues: DockerSecurityReport["issues"]): string
   const internalFixableCount = internalFixable.length;
 
   return [
-    "Instrucciones para aplicar fixes de Docker security:",
-    `1) Aplica primero los fixes automáticos internos (replacement no nulo). Total: ${internalFixableCount}.`,
-    `2) Para issues de scanners externos (replacement: null), genera un Dockerfile completo corregido como buildFixProposal. Total: ${externalCount}.`,
-    "3) Aplica el buildFixProposal y (si corresponde) verifica con docker build.",
+    "Instructions for applying Docker security fixes:",
+    `1) Apply internal automatic fixes first (non-null replacement). Total: ${internalFixableCount}.`,
+    `2) For external scanner issues (replacement: null), generate a complete corrected Dockerfile as buildFixProposal. Total: ${externalCount}.`,
+    "3) Apply the buildFixProposal and (if applicable) verify with docker build.",
   ].join("\n");
 }
 
@@ -67,7 +67,7 @@ export function createAuditDockerSecurityTool(deps = {
             qualityGateSummary: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
             internalChecksRan: true,
             scanners,
-            llmFixInstructions: "No se encontraron Dockerfiles en el projectPath proporcionado.",
+            llmFixInstructions: "No Dockerfiles found in the provided projectPath.",
           };
           return { content: [{ type: "text", text: JSON.stringify(report) }] };
         }

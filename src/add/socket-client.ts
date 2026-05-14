@@ -13,9 +13,9 @@ export async function querySocket(
   } catch (err) {
     const msg = String(err);
     if (msg.includes("not found") || msg.includes("ENOENT") || msg.includes("command not found")) {
-      process.stderr.write(pc.yellow("⚠ Socket CLI no encontrado en PATH. Continuando solo con Capa 1.\n"));
+      process.stderr.write(pc.yellow("⚠ Socket CLI not found in PATH. Continuing with Layer 1 only.\n"));
     } else {
-      process.stderr.write(pc.yellow(`⚠ Error ejecutando Socket CLI: ${msg}. Continuando con Capa 1.\n`));
+      process.stderr.write(pc.yellow(`⚠ Error running Socket CLI: ${msg}. Continuing with Layer 1.\n`));
     }
     return null;
   }
@@ -33,7 +33,7 @@ export async function querySocket(
     });
     return { supplyChainRisk, alerts };
   } catch {
-    process.stderr.write(pc.yellow("⚠ No se pudo parsear el output de Socket CLI. Continuando con Capa 1.\n"));
+    process.stderr.write(pc.yellow("⚠ Could not parse Socket CLI output. Continuing with Layer 1.\n"));
     return null;
   }
 }

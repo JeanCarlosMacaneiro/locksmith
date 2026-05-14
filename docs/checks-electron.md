@@ -1,26 +1,26 @@
 # Electron security checks
 
-Tres checks adicionales que se ejecutan solo cuando `projectType === "electron"`.
+Three additional checks that run only when `projectType === "electron"`.
 
 ---
 
 ## `electron-csp` — Content Security Policy
 
-**Qué detecta:** ausencia de CSP en el proceso main o en el HTML del renderer.
+**What it detects:** absence of CSP in the main process or in the HTML renderer.
 
-**Busca en:**
-- Archivo main (detectado por `package.json.main` o candidatos comunes)
-- Patrones: `Content-Security-Policy`, `onHeadersReceived`, `defaultSession`
+**Searches in:**
+- Main file (detected via `package.json.main` or common candidates)
+- Patterns: `Content-Security-Policy`, `onHeadersReceived`, `defaultSession`
 - HTML candidates: `index.html`, `src/index.html`, `public/index.html`
 
 **Statuses:**
-- `ok` — CSP encontrada en main process o HTML
-- `warn` — no se encontró archivo main para verificar
-- `error` — no se encontró CSP en ninguna ubicación
+- `ok` — CSP found in main process or HTML
+- `warn` — main file not found for inspection
+- `error` — CSP not found in any location
 
-**Resolución:**
+**Resolution:**
 ```typescript
-// Opción A — main process
+// Option A — main process
 session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
   callback({
     responseHeaders: {
@@ -30,7 +30,7 @@ session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
   });
 });
 
-// Opción B — HTML renderer
+// Option B — HTML renderer
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
 ```
 
@@ -38,29 +38,29 @@ session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
 
 ## `electron-node-integration` — nodeIntegration / contextIsolation
 
-**Qué detecta:** configuración insegura de `webPreferences` en `BrowserWindow`.
+**What it detects:** unsafe `webPreferences` configuration in `BrowserWindow`.
 
-**Patrones detectados:**
-- `/nodeIntegration\s*:\s*true/` → RCE risk (renderer accede a Node.js directamente)
-- `/contextIsolation\s*:\s*false/` → renderer comparte contexto con Node.js
+**Patterns detected:**
+- `/nodeIntegration\s*:\s*true/` → RCE risk (renderer accesses Node.js directly)
+- `/contextIsolation\s*:\s*false/` → renderer shares context with Node.js
 
 **Statuses:**
-- `ok` — no se detectaron configuraciones inseguras
-- `warn` — no se encontró archivo main
-- `error` — patrón inseguro detectado
+- `ok` — no unsafe configurations detected
+- `warn` — main file not found
+- `error` — unsafe pattern detected
 
-**Resolución:**
+**Resolution:**
 ```typescript
 new BrowserWindow({
   webPreferences: {
-    nodeIntegration: false,   // ← obligatorio
-    contextIsolation: true,   // ← obligatorio
-    sandbox: true,            // recomendado
+    nodeIntegration: false,   // ← required
+    contextIsolation: true,   // ← required
+    sandbox: true,            // recommended
     preload: path.join(__dirname, "preload.js"),
   },
 });
 
-// En preload.js — exponer APIs de forma segura
+// In preload.js — expose APIs safely
 contextBridge.exposeInMainWorld("api", {
   send: (channel: string, data: unknown) => ipcRenderer.send(channel, data),
 });
@@ -70,28 +70,28 @@ contextBridge.exposeInMainWorld("api", {
 
 ## `electron-rebuild` — native modules rebuild
 
-**Qué detecta:** `electron-rebuild` o `@electron/rebuild` configurado de forma insegura (en postinstall).
+**What it detects:** `electron-rebuild` or `@electron/rebuild` configured unsafely (in postinstall).
 
-**Lógica:**
-1. Si `@electron/rebuild` / `electron-rebuild` no está en devDependencies → `warn`
-2. Si está en `scripts.postinstall` → `error` (ejecuta sin control al instalar)
-3. Si está en devDeps y NO en postinstall → `ok`
+**Logic:**
+1. If `@electron/rebuild` / `electron-rebuild` not in devDependencies → `warn`
+2. If in `scripts.postinstall` → `error` (runs uncontrolled on every install)
+3. If in devDeps and NOT in postinstall → `ok`
 
-**Fix automático disponible:** mueve electron-rebuild del postinstall a un script explícito `rebuild`.
+**Auto-fix available:** moves electron-rebuild from postinstall to an explicit `rebuild` script.
 
-**Resolución manual:**
+**Manual resolution:**
 ```json
 {
   "scripts": {
     "rebuild": "electron-rebuild",
-    "postinstall": "otro-script-si-existe"
+    "postinstall": "other-script-if-needed"
   }
 }
 ```
 
-**Por qué importa:** `postinstall` se ejecuta automáticamente con cada `pnpm install`. Un rebuild implícito puede compilar código nativo sin que el desarrollador lo sepa, aumentando la superficie de ataque.
+**Why it matters:** `postinstall` runs automatically on every `pnpm install`. An implicit rebuild compiles native code without the developer's awareness, increasing the attack surface.
 
-**onlyBuiltDependencies recomendado** para proyectos Electron con módulos nativos:
+**`onlyBuiltDependencies` recommended** for Electron projects with native modules:
 ```json
 {
   "pnpm": {

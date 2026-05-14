@@ -14,16 +14,16 @@ export function buildReport(info: PackageSecurityInfo): string {
   const lines: string[] = [];
 
   const riskBadge =
-    info.riskLevel === "critical" ? pc.red("✗ CRÍTICO")
-    : info.riskLevel === "medium"   ? pc.yellow("⚠ MEDIO")
-    : pc.green("✓ Sin riesgos");
+    info.riskLevel === "critical" ? pc.red("✗ CRITICAL")
+    : info.riskLevel === "medium"   ? pc.yellow("⚠ MEDIUM")
+    : pc.green("✓ No risks");
 
-  lines.push(pc.bold(`\n🔐 locksmith — análisis de seguridad`));
-  lines.push(`   Paquete: ${pc.bold(info.name)}@${pc.cyan(info.resolvedVersion)}`);
-  lines.push(`   Riesgo:  ${riskBadge}\n`);
+  lines.push(pc.bold(`\n🔐 locksmith — security analysis`));
+  lines.push(`   Package: ${pc.bold(info.name)}@${pc.cyan(info.resolvedVersion)}`);
+  lines.push(`   Risk:    ${riskBadge}\n`);
 
   if (info.riskLevel === "medium" && info.dangerousScripts.length > 0) {
-    lines.push(pc.yellow("   Scripts peligrosos detectados:"));
+    lines.push(pc.yellow("   Dangerous scripts detected:"));
     for (const ds of info.dangerousScripts) {
       lines.push(`     ${pc.bold(ds.scriptName)}: ${ds.value}`);
       lines.push(`       Patrones: ${ds.patterns.join(", ")}`);

@@ -18,7 +18,7 @@ export async function checkNodeVersion(projectPath: string): Promise<CheckResult
       return {
         name: "node version",
         status: "warn",
-        message: `Node ${version} fijado en .nvmrc — se recomienda >= ${MIN_MAJOR}`,
+        message: `Node ${version} pinned in .nvmrc — >= ${MIN_MAJOR} recommended`,
         fixable: true,
         fix: async () => {
           const { applyNodeVersion } = await import("../fixer/apply");
@@ -30,7 +30,7 @@ export async function checkNodeVersion(projectPath: string): Promise<CheckResult
     return {
       name: "node version",
       status: "ok",
-      message: `Versión fijada en .nvmrc: ${version}`,
+      message: `Version pinned in .nvmrc: ${version}`,
     };
   }
 
@@ -40,7 +40,7 @@ export async function checkNodeVersion(projectPath: string): Promise<CheckResult
     return {
       name: "node version",
       status: "ok",
-      message: `Versión fijada en .node-version: ${version}`,
+      message: `Version pinned in .node-version: ${version}`,
     };
   }
 
@@ -53,7 +53,7 @@ export async function checkNodeVersion(projectPath: string): Promise<CheckResult
       return {
         name: "node version",
         status: "ok",
-        message: `Versión fijada en engines.node: ${enginesNode}`,
+        message: `Version pinned in engines.node: ${enginesNode}`,
       };
     }
   }
@@ -61,7 +61,7 @@ export async function checkNodeVersion(projectPath: string): Promise<CheckResult
   return {
     name: "node version",
     status: "warn",
-    message: "Versión de Node no fijada — usa .nvmrc, .node-version o engines.node en package.json",
+    message: "Node version not pinned — use .nvmrc, .node-version or engines.node in package.json",
     fixable: true,
     fix: async () => {
       const { applyNodeVersion } = await import("../fixer/apply");

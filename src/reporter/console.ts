@@ -10,15 +10,15 @@ export function printReport(results: CheckResult[]): void {
 
   printExecutiveSummary(errors.length, warnings.length, allOk.length);
 
-  if (errors.length > 0)   printSection("ACCIÓN REQUERIDA", errors, "error");
-  if (warnings.length > 0) printSection("ADVERTENCIAS", warnings, "warn");
+  if (errors.length > 0)   printSection("ACTION REQUIRED", errors, "error");
+  if (warnings.length > 0) printSection("WARNINGS", warnings, "warn");
   if (allOk.length > 0)    printCollapsedOk(allOk);
 }
 
 function printExecutiveSummary(errors: number, warns: number, oks: number): void {
   const parts: string[] = [];
-  if (errors > 0) parts.push(pc.red(`${errors} ${errors === 1 ? "error" : "errores"}`));
-  if (warns  > 0) parts.push(pc.yellow(`${warns} ${warns === 1 ? "advertencia" : "advertencias"}`));
+  if (errors > 0) parts.push(pc.red(`${errors} ${errors === 1 ? "error" : "errors"}`));
+  if (warns  > 0) parts.push(pc.yellow(`${warns} ${warns === 1 ? "warning" : "warnings"}`));
   parts.push(pc.green(`${oks} ok`));
   console.log(`\n  ${parts.join(pc.dim(" · "))}\n`);
 }
@@ -70,7 +70,7 @@ function printActionPrompt(checks: CheckResult[]): void {
 }
 
 function printCollapsedOk(checks: CheckResult[]): void {
-  console.log(pc.dim(sectionHeader("TODO OK")));
+  console.log(pc.dim(sectionHeader("ALL OK")));
   const names = checks
     .map(r => r.wasFixed ? `${r.name} ${pc.green("[fixed]")}` : r.name)
     .join(pc.dim(" · "));

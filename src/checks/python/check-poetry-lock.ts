@@ -14,13 +14,13 @@ export async function checkPoetryLock(projectPath: string): Promise<CheckResult>
   if (!existsSync(lockPath)) {
     const hasConflicts  = conflictingFiles.length > 0;
     const conflictNote  = hasConflicts
-      ? ` — se eliminarán: ${conflictingFiles.join(", ")}`
+      ? ` — will be removed: ${conflictingFiles.join(", ")}`
       : "";
 
     return {
       name: "poetry.lock",
       status: "error",
-      message: `poetry.lock no encontrado${conflictNote}`,
+      message: `poetry.lock not found${conflictNote}`,
       fixable: true,
       fix: async () => {
         const { applyPoetryLock } = await import("../../fixer/apply");
@@ -36,13 +36,13 @@ export async function checkPoetryLock(projectPath: string): Promise<CheckResult>
     return {
       name: "poetry.lock",
       status: "warn",
-      message: "poetry.lock parece estar vacío o corrupto",
+      message: "poetry.lock appears to be empty or corrupt",
     };
   }
 
   return {
     name: "poetry.lock",
     status: "ok",
-    message: `Lockfile presente (${(size / 1024).toFixed(1)} KB)`,
+    message: `Lockfile present (${(size / 1024).toFixed(1)} KB)`,
   };
 }

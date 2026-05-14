@@ -107,7 +107,7 @@ describe("checkNpmrc", () => {
     expect(r.status).toBe("error");
     expect(r.fixable).toBe(true);
     expect(r.fix).toBeTypeOf("function");
-    expect(r.message).toContain("Faltan reglas");
+    expect(r.message).toContain("Missing rules");
   });
 
   it("error si falta frozen-lockfile=true específicamente", async () => {
@@ -208,7 +208,7 @@ describe("checkLockfile", () => {
     writeFileSync(join(TMP, "pnpm-lock.yaml"), "lockfileVersion: 9");
     const r = await checkLockfile(TMP);
     expect(r.status).toBe("warn");
-    expect(r.message).toContain("vacío o corrupto");
+    expect(r.message).toContain("empty or corrupt");
   });
 
   it("ok si pnpm-lock.yaml existe con contenido válido", async () => {
@@ -568,7 +568,7 @@ describe("checkPoetryLock", () => {
     writeFileSync(join(TMP, "poetry.lock"), "# empty\n");
     const r = await checkPoetryLock(TMP);
     expect(r.status).toBe("warn");
-    expect(r.message).toContain("vacío o corrupto");
+    expect(r.message).toContain("empty or corrupt");
   });
 
   it("ok si poetry.lock existe con contenido válido", async () => {
@@ -585,7 +585,7 @@ describe("checkDepGroups", () => {
   it("warn si pyproject.toml no existe", async () => {
     const r = await checkDepGroups(TMP);
     expect(r.status).toBe("warn");
-    expect(r.message).toContain("pyproject.toml no encontrado");
+    expect(r.message).toContain("pyproject.toml not found");
   });
 
   it("warn si no hay grupo dev — debe ser fixable", async () => {
@@ -668,7 +668,7 @@ describe("checkPypiSource", () => {
   it("warn si pyproject.toml no existe", async () => {
     const r = await checkPypiSource(TMP);
     expect(r.status).toBe("warn");
-    expect(r.message).toContain("pyproject.toml no encontrado");
+    expect(r.message).toContain("pyproject.toml not found");
   });
 
   it("ok si no hay secciones [[tool.poetry.source]] (usa PyPI por defecto)", async () => {
@@ -1191,7 +1191,7 @@ MIIEowIBAAKCAQEA0Z3VS5JJcds3xHn
     const r = await checkSecrets(TMP);
     const hintText = r.hint!.join("\n");
     expect(hintText).toContain("secrets.ts");
-    expect(hintText).toContain("línea 2");
+    expect(hintText).toContain("line 2");
     expect(hintText).toContain("AWS access key");
   });
 
@@ -1328,7 +1328,7 @@ describe("analyzeDockerfile — Node", () => {
     writePkg({ packageManager: "pnpm@10.25.0" });
     writeDockerfile("FROM node:20\nRUN npm install --silent --force\n");
     const [r] = analyzeDockerfile(TMP, "node");
-    const issue = r!.issues.find(x => x.description.includes("pnpm pero Dockerfile"));
+    const issue = r!.issues.find(x => x.description.includes("project uses pnpm but Dockerfile"));
     expect(issue).toBeDefined();
     expect(issue!.replacement).toContain("pnpm install");
     expect(r!.proposedContent).toContain("pnpm install");
@@ -1981,13 +1981,13 @@ describe("checkScripts", () => {
     const r = await checkScripts(TMP);
     expect(r.status).toBe("warn");
     expect(r.message).toContain("--frozen-lockfile");
-    expect(r.message).not.toContain("locksmith (auditoría");
+    expect(r.message).not.toContain("locksmith (security");
   });
 
   it("warn sin package.json", async () => {
     const r = await checkScripts(TMP);
     expect(r.status).toBe("warn");
-    expect(r.message).toContain("package.json no encontrado");
+    expect(r.message).toContain("package.json not found");
   });
 });
 

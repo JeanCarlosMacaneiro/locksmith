@@ -5,7 +5,7 @@ import type { CheckResult } from "../types";
 export async function checkBuiltDeps(projectPath: string): Promise<CheckResult> {
   const pkgPath = join(projectPath, "package.json");
   if (!existsSync(pkgPath)) {
-    return { name: "onlyBuiltDependencies", status: "warn", message: "package.json no encontrado" };
+    return { name: "onlyBuiltDependencies", status: "warn", message: "package.json not found" };
   }
 
   const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
@@ -18,7 +18,7 @@ export async function checkBuiltDeps(projectPath: string): Promise<CheckResult> 
     return {
       name: "onlyBuiltDependencies",
       status: "warn",
-      message: "Sin allowlist de scripts — cualquier paquete puede ejecutar postinstall",
+      message: "No script allowlist — any package can run postinstall",
       fixable: true,
       fix: async () => {
         const { applyOnlyBuiltDeps } = await import("../fixer/apply");

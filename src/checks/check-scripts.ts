@@ -6,7 +6,7 @@ export async function checkScripts(projectPath: string): Promise<CheckResult> {
   const pkgPath = join(projectPath, "package.json");
 
   if (!existsSync(pkgPath)) {
-    return { name: "scripts de proyecto", status: "warn", message: "package.json no encontrado" };
+    return { name: "project scripts", status: "warn", message: "package.json not found" };
   }
 
   const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
@@ -16,21 +16,21 @@ export async function checkScripts(projectPath: string): Promise<CheckResult> {
   const missingFrozen    = !Object.values(scripts).some((v) => v.includes("--frozen-lockfile"));
 
   const missing: string[] = [];
-  if (missingLocksmith) missing.push("locksmith (auditoría de seguridad)");
+  if (missingLocksmith) missing.push("locksmith (security audit)");
   if (missingFrozen)    missing.push("pnpm install --frozen-lockfile");
 
   if (missing.length === 0) {
     return {
-      name: "scripts de proyecto",
+      name: "project scripts",
       status: "ok",
-      message: "Scripts de seguridad e instalación configurados",
+      message: "Security and install scripts configured",
     };
   }
 
   return {
-    name: "scripts de proyecto",
+    name: "project scripts",
     status: "warn",
-    message: `Faltan scripts: ${missing.join(", ")}`,
+    message: `Missing scripts: ${missing.join(", ")}`,
     fixable: true,
     fix: async () => {
       const { applyLocksmithScripts } = await import("../fixer/apply");

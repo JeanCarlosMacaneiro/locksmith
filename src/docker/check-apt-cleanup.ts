@@ -14,10 +14,10 @@ function hasAptCleanup(trimmed: string): boolean {
 
 function buildIssue(lineNum: number, original: string): DockerIssue {
   const remediationGuide = [
-    "Se detectó apt-get install sin cleanup en la misma capa RUN.",
-    "Esto deja cachés de APT dentro de la imagen, aumentando tamaño y superficie de ataque.",
-    "Solución recomendada: agrega el cleanup en el mismo RUN. Ejemplo:",
-    "RUN apt-get update && apt-get install -y --no-install-recommends <paquetes> && rm -rf /var/lib/apt/lists/*",
+    "apt-get install detected without cleanup in the same RUN layer.",
+    "This leaves APT caches inside the image, increasing size and attack surface.",
+    "Recommended fix: add the cleanup in the same RUN. Example:",
+    "RUN apt-get update && apt-get install -y --no-install-recommends <packages> && rm -rf /var/lib/apt/lists/*",
   ].join("\n");
 
   return {
@@ -25,7 +25,7 @@ function buildIssue(lineNum: number, original: string): DockerIssue {
     kind: "missing-flag",
     severity: "medium",
     source: "internal",
-    description: "apt-get install sin cleanup (rm -rf /var/lib/apt/lists/* o apt-get clean) en el mismo RUN",
+    description: "apt-get install without cleanup (rm -rf /var/lib/apt/lists/* or apt-get clean) in the same RUN",
     original,
     replacement: null,
     remediationGuide,

@@ -14,20 +14,20 @@ export async function checkPoetry(_projectPath: string): Promise<CheckResult> {
       return {
         name: "poetry version",
         status: "warn",
-        message: `Poetry ${version} instalado — se recomienda v${MIN_VERSION}+`,
+        message: `Poetry ${version} installed — v${MIN_VERSION}+ recommended`,
       };
     }
 
     return {
       name: "poetry version",
       status: "ok",
-      message: `Poetry ${version} instalado`,
+      message: `Poetry ${version} installed`,
     };
   } catch {
     return {
       name: "poetry version",
       status: "error",
-      message: "Poetry no está instalado — instálalo desde: https://python-poetry.org/docs/#installation",
+      message: "Poetry not installed — install from: https://python-poetry.org/docs/#installation",
       fixable: false,
     };
   }

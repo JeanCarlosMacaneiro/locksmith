@@ -18,7 +18,7 @@ function displayIssues(analysis: DockerfileAnalysis, projectPath: string): void 
   console.log(pc.bold(`\n🐳 Dockerfile: ${pc.cyan(relPath)}`));
 
   if (analysis.issues.length === 0) {
-    console.log(pc.green("  ✓ Dockerfile al día\n"));
+    console.log(pc.green("  ✓ Dockerfile up to date\n"));
     return;
   }
 
@@ -26,7 +26,7 @@ function displayIssues(analysis: DockerfileAnalysis, projectPath: string): void 
   const advisory = analysis.issues.filter(x => x.replacement === null);
 
   if (fixable.length > 0) {
-    console.log(pc.dim("  Problemas encontrados:"));
+    console.log(pc.dim("  Issues found:"));
     for (const issue of fixable) {
       const lineTag = pc.dim(`L${issue.line}`.padEnd(5));
       const kind    = pc.yellow(KIND_LABEL[issue.kind]);
@@ -35,7 +35,7 @@ function displayIssues(analysis: DockerfileAnalysis, projectPath: string): void 
   }
 
   if (advisory.length > 0) {
-    console.log(pc.dim("\n  [sin corrección automática]"));
+    console.log(pc.dim("\n  [no automatic fix]"));
     for (const issue of advisory) {
       const lineTag = pc.dim(`L${issue.line}`.padEnd(5));
       console.log(`  ${pc.dim("ℹ")}  ${lineTag} ${pc.dim(KIND_LABEL[issue.kind])}  ${pc.dim(issue.description)}`);
@@ -70,7 +70,7 @@ export async function showDockerWarnings(
 
   const withIssues = found.filter(a => a.issues.length > 0);
   if (withIssues.length > 0) {
-    console.log(pc.dim("  → ejecuta locksmith --fix-dockerfile para corregir\n"));
+    console.log(pc.dim("  → run locksmith --fix-dockerfile to fix\n"));
   }
 }
 
@@ -82,7 +82,7 @@ export async function promptDockerFix(
   const found = analyses.filter(a => a.found);
 
   if (found.length === 0) {
-    console.log(pc.dim("  No se encontró Dockerfile en el proyecto.\n"));
+    console.log(pc.dim("  Dockerfile not found in the project.\n"));
     return;
   }
 
@@ -96,24 +96,24 @@ export async function promptDockerFix(
 
     if (autoFix) {
       applyDockerfileFix(analysis);
-      console.log(pc.green(`  ✓ ${relPath} actualizado\n`));
+      console.log(pc.green(`  ✓ ${relPath} updated\n`));
       continue;
     }
 
     if (!process.stdin.isTTY) {
-      console.log(pc.dim("  (modo no-interactivo — ejecuta locksmith --fix-dockerfile en terminal)\n"));
+      console.log(pc.dim("  (non-interactive mode — run locksmith --fix-dockerfile in a terminal)\n"));
       continue;
     }
 
     const confirmed = await askConfirmation(
-      pc.bold(`  ¿Actualizar ${relPath}? `) + pc.dim("[y/N] ")
+      pc.bold(`  Update ${relPath}? `) + pc.dim("[y/N] ")
     );
 
     if (confirmed) {
       applyDockerfileFix(analysis);
-      console.log(pc.green(`  ✓ ${relPath} actualizado\n`));
+      console.log(pc.green(`  ✓ ${relPath} updated\n`));
     } else {
-      console.log(pc.dim(`  Saltando ${relPath}\n`));
+      console.log(pc.dim(`  Skipping ${relPath}\n`));
     }
   }
 }

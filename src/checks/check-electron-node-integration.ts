@@ -9,7 +9,7 @@ export async function checkElectronNodeIntegration(projectPath: string): Promise
     return {
       name: "electron-node-integration",
       status: "warn",
-      message: "No se encontró el archivo main de Electron para verificar nodeIntegration",
+      message: "Electron main file not found to verify nodeIntegration",
     };
   }
 
@@ -19,12 +19,12 @@ export async function checkElectronNodeIntegration(projectPath: string): Promise
     return {
       name: "electron-node-integration",
       status: "error",
-      message: "nodeIntegration: true — el renderer tiene acceso directo a Node.js (RCE risk)",
+      message: "nodeIntegration: true — renderer has direct access to Node.js (RCE risk)",
       fixable: false,
       hint: [
-        "Cambia nodeIntegration: false en webPreferences de BrowserWindow",
-        "Usa contextIsolation: true y preload scripts para exponer APIs de forma segura",
-        "Nunca exponer ipcRenderer directamente — usar contextBridge.exposeInMainWorld",
+        "Set nodeIntegration: false in BrowserWindow webPreferences",
+        "Use contextIsolation: true and preload scripts to expose APIs safely",
+        "Never expose ipcRenderer directly — use contextBridge.exposeInMainWorld",
       ],
     };
   }
@@ -33,15 +33,15 @@ export async function checkElectronNodeIntegration(projectPath: string): Promise
     return {
       name: "electron-node-integration",
       status: "error",
-      message: "contextIsolation: false — el renderer comparte contexto con Node.js",
+      message: "contextIsolation: false — renderer shares context with Node.js",
       fixable: false,
-      hint: ["Cambia contextIsolation: true en webPreferences de BrowserWindow"],
+      hint: ["Set contextIsolation: true in BrowserWindow webPreferences"],
     };
   }
 
   return {
     name: "electron-node-integration",
     status: "ok",
-    message: "nodeIntegration deshabilitado, contextIsolation habilitado",
+    message: "nodeIntegration disabled, contextIsolation enabled",
   };
 }

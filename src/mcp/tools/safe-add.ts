@@ -51,7 +51,7 @@ export function createSafeAddTool(deps = {
           if (err instanceof RegistryError && err.code === "not_found") {
             const output: McpErrorOutput = {
               error: "PACKAGE_NOT_FOUND",
-              message: `Paquete no encontrado en el registry npm: ${pkgName}`,
+              message: `Package not found in the npm registry: ${pkgName}`,
             };
             return { content: [{ type: "text", text: JSON.stringify(output) }] };
           }

@@ -135,7 +135,7 @@ describe("buildReport — unit", () => {
 
   it("riskLevel critical incluye texto crítico", () => {
     const r = buildReport({ ...base, riskLevel: "critical" });
-    expect(r.toLowerCase()).toContain("crít");
+    expect(r.toLowerCase()).toContain("critical");
   });
 
   it("socketScore visible en reporte", () => {

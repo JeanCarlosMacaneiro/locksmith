@@ -12,7 +12,7 @@ export async function checkPythonVersion(projectPath: string): Promise<CheckResu
     return {
       name: "python version",
       status: "warn",
-      message: `Campo .python-version ausente — versión de Python no fijada (recomendado: ${REQUIRED_VERSION})`,
+      message: `.python-version file missing — Python version not pinned (recommended: ${REQUIRED_VERSION})`,
       fixable: true,
       fix: async () => {
         const { applyPythonVersion } = await import("../../fixer/apply");
@@ -28,7 +28,7 @@ export async function checkPythonVersion(projectPath: string): Promise<CheckResu
     return {
       name: "python version",
       status: "error",
-      message: `Python ${version} fijado — se requiere >= ${REQUIRED_MINOR}`,
+      message: `Python ${version} pinned — >= ${REQUIRED_MINOR} required`,
       fixable: true,
       fix: async () => {
         const { applyPythonVersion } = await import("../../fixer/apply");
@@ -40,6 +40,6 @@ export async function checkPythonVersion(projectPath: string): Promise<CheckResu
   return {
     name: "python version",
     status: "ok",
-    message: `Versión fijada: ${version}`,
+    message: `Version pinned: ${version}`,
   };
 }

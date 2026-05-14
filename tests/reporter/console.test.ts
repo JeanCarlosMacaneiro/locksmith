@@ -45,7 +45,7 @@ describe("printReport — property tests", () => {
       const warns  = results.filter(r => r.status === "warn"  && !r.wasFixed).length;
       const oks    = results.filter(r => r.status === "ok"    && !r.wasFixed).length + fixed;
       if (errors > 0) expect(out).toContain(`${errors} error`);
-      if (warns  > 0) expect(out).toContain(`${warns} advertencia`);
+      if (warns  > 0) expect(out).toContain(`${warns} warning`);
       expect(out).toContain(`${oks} ok`);
     }), { numRuns: 100 });
   });
@@ -56,9 +56,9 @@ describe("printReport — property tests", () => {
       const hasErrors  = results.some(r => r.status === "error" && !r.wasFixed);
       const hasWarns   = results.some(r => r.status === "warn"  && !r.wasFixed);
       const hasOk      = results.some(r => (r.status === "ok" || r.wasFixed));
-      if (!hasErrors) expect(out).not.toContain("ACCIÓN REQUERIDA");
-      if (!hasWarns)  expect(out).not.toContain("ADVERTENCIAS");
-      if (!hasOk)     expect(out).not.toContain("TODO OK");
+      if (!hasErrors) expect(out).not.toContain("ACTION REQUIRED");
+      if (!hasWarns)  expect(out).not.toContain("WARNINGS");
+      if (!hasOk)     expect(out).not.toContain("ALL OK");
     }), { numRuns: 100 });
   });
 
@@ -70,9 +70,9 @@ describe("printReport — property tests", () => {
       const hasOk     = results.some(r => r.status === "ok" || r.wasFixed);
       if (!hasErrors || !hasWarns || !hasOk) return;
       const out = strip(captureOutput(() => printReport(results)));
-      const posErr  = out.indexOf("ACCIÓN REQUERIDA");
-      const posWarn = out.indexOf("ADVERTENCIAS");
-      const posOk   = out.indexOf("TODO OK");
+      const posErr  = out.indexOf("ACTION REQUIRED");
+      const posWarn = out.indexOf("WARNINGS");
+      const posOk   = out.indexOf("ALL OK");
       expect(posErr).toBeLessThan(posWarn);
       expect(posWarn).toBeLessThan(posOk);
     }), { numRuns: 100 });
@@ -128,15 +128,15 @@ describe("printReport — property tests", () => {
     }), { numRuns: 100 });
   });
 
-  it("P7: wasFixed implica ✓, [fixed] badge e ubicación en TODO OK", () => {
+  it("P7: wasFixed implica ✓, [fixed] badge e ubicación en ALL OK", () => {
     fc.assert(fc.property(arbResults, (results) => {
       const fixedChecks = results.filter(r => r.wasFixed);
       if (fixedChecks.length === 0) return;
       const out = strip(captureOutput(() => printReport(results)));
-      expect(out).toContain("TODO OK");
+      expect(out).toContain("ALL OK");
       expect(out).toContain("[fixed]");
       for (const r of fixedChecks) {
-        expect(out).not.toContain(`ACCIÓN REQUERIDA\n  ✗ ${r.name}`);
+        expect(out).not.toContain(`ACTION REQUIRED\n  ✗ ${r.name}`);
       }
     }), { numRuns: 100 });
   });
@@ -154,19 +154,19 @@ describe("printReport — property tests", () => {
 // ── Unit tests ────────────────────────────────────────────────────
 
 describe("printReport — unit tests", () => {
-  it("omite ACCIÓN REQUERIDA cuando no hay errores", () => {
+  it("omite ACTION REQUIRED cuando no hay errores", () => {
     const results: CheckResult[] = [{ name: "pnpm", status: "ok", message: "ok" }];
     const out = captureOutput(() => printReport(results));
-    expect(out).not.toContain("ACCIÓN REQUERIDA");
+    expect(out).not.toContain("ACTION REQUIRED");
   });
 
-  it("checks fixed aparecen en TODO OK con badge [fixed]", () => {
+  it("checks fixed aparecen en ALL OK con badge [fixed]", () => {
     const results: CheckResult[] = [
       { name: ".npmrc", status: "error", message: "faltan reglas", wasFixed: true },
     ];
     const out = strip(captureOutput(() => printReport(results)));
-    expect(out).not.toContain("ACCIÓN REQUERIDA");
-    expect(out).toContain("TODO OK");
+    expect(out).not.toContain("ACTION REQUIRED");
+    expect(out).toContain("ALL OK");
     expect(out).toContain("[fixed]");
   });
 
@@ -190,15 +190,15 @@ describe("printReport — unit tests", () => {
     expect(out).toContain("0 ok");
   });
 
-  it("todos los checks fixed → TODO OK con todos los badges, sin error/warn sections", () => {
+  it("todos los checks fixed → ALL OK con todos los badges, sin error/warn sections", () => {
     const results: CheckResult[] = [
       { name: "a", status: "error", message: "e", wasFixed: true },
       { name: "b", status: "warn",  message: "w", wasFixed: true },
     ];
     const out = strip(captureOutput(() => printReport(results)));
-    expect(out).not.toContain("ACCIÓN REQUERIDA");
-    expect(out).not.toContain("ADVERTENCIAS");
-    expect(out).toContain("TODO OK");
+    expect(out).not.toContain("ACTION REQUIRED");
+    expect(out).not.toContain("WARNINGS");
+    expect(out).toContain("ALL OK");
     expect(out).toContain("a");
     expect(out).toContain("b");
     const fixedCount = (out.match(/\[fixed\]/g) || []).length;
@@ -220,7 +220,7 @@ describe("printReport — unit tests", () => {
     ];
     const out = captureOutput(() => printReport(results));
     expect(out).toContain("──");
-    expect(out).toContain("ACCIÓN REQUERIDA");
+    expect(out).toContain("ACTION REQUIRED");
   });
 
   it("executive summary omite zeros correctamente", () => {
@@ -229,7 +229,7 @@ describe("printReport — unit tests", () => {
       { name: "b", status: "ok",    message: "o" },
     ];
     const out = strip(captureOutput(() => printReport(results)));
-    expect(out).not.toContain("advertencia");
+    expect(out).not.toContain("warning");
     expect(out).toContain("1 error");
     expect(out).toContain("1 ok");
   });

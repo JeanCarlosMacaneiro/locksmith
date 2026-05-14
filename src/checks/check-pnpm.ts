@@ -13,20 +13,20 @@ export async function checkPnpm(_projectPath: string): Promise<CheckResult> {
       return {
         name: "pnpm version",
         status: "warn",
-        message: `pnpm ${version} instalado — se recomienda v${MIN_VERSION}+`,
+        message: `pnpm ${version} installed — v${MIN_VERSION}+ recommended`,
       };
     }
 
     return {
       name: "pnpm version",
       status: "ok",
-      message: `pnpm ${version} instalado`,
+      message: `pnpm ${version} installed`,
     };
   } catch {
     return {
       name: "pnpm version",
       status: "error",
-      message: "pnpm no está instalado — ejecuta: corepack enable && corepack install -g pnpm@latest",
+      message: "pnpm not installed — run: corepack enable && corepack install -g pnpm@latest",
       fixable: false,
     };
   }

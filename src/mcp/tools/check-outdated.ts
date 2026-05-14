@@ -31,7 +31,7 @@ export function createCheckOutdatedTool(deps = {
 
         if (!policy.hasConfig) {
           output.warning =
-            "No se encontró renovate.json — usando delays por defecto (patch: 3d, minor: 7d, major: 30d)";
+            "renovate.json not found — using default delays (patch: 3d, minor: 7d, major: 30d)";
         }
 
         return { content: [{ type: "text", text: JSON.stringify(output) }] };

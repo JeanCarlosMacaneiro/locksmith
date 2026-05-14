@@ -17,7 +17,7 @@ export async function checkNpmrc(projectPath: string): Promise<CheckResult> {
     return {
       name: ".npmrc",
       status: "error",
-      message: ".npmrc no encontrado — configuración de seguridad ausente",
+      message: ".npmrc not found — security configuration missing",
       fixable: true,
       fix: async () => {
         const { applyNpmrc } = await import("../fixer/apply");
@@ -38,7 +38,7 @@ export async function checkNpmrc(projectPath: string): Promise<CheckResult> {
     return {
       name: ".npmrc",
       status: "error",
-      message: `Faltan reglas: ${missing.join(", ")}`,
+      message: `Missing rules: ${missing.join(", ")}`,
       fixable: true,
       fix: async () => {
         const { applyNpmrc } = await import("../fixer/apply");
@@ -50,6 +50,6 @@ export async function checkNpmrc(projectPath: string): Promise<CheckResult> {
   return {
     name: ".npmrc",
     status: "ok",
-    message: `${Object.keys(REQUIRED_RULES).length}/${Object.keys(REQUIRED_RULES).length} reglas activas`,
+    message: `${Object.keys(REQUIRED_RULES).length}/${Object.keys(REQUIRED_RULES).length} rules active`,
   };
 }

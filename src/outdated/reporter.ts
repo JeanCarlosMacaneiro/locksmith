@@ -16,19 +16,19 @@ const TYPE_LABEL: Record<UpdateType, string> = {
 };
 
 function formatAge(ageInDays: number | null): string {
-  if (ageInDays === null) return pc.dim("fecha desconocida");
-  return pc.dim(`publicado hace ${ageInDays}d`);
+  if (ageInDays === null) return pc.dim("unknown date");
+  return pc.dim(`published ${ageInDays}d ago`);
 }
 
 function formatPolicy(pkg: OutdatedPackage): string {
   if (pkg.policyMet === null) {
-    return pc.dim(`política: ${pkg.policyDays}d (fecha desconocida)`);
+    return pc.dim(`policy: ${pkg.policyDays}d (unknown date)`);
   }
   if (pkg.policyMet) {
-    return pc.green(`✅ política ok (${pkg.policyDays}d)`);
+    return pc.green(`✅ policy ok (${pkg.policyDays}d)`);
   }
   const daysLeft = pkg.policyDays - (pkg.ageInDays ?? 0);
-  return pc.yellow(`⏳ muy reciente (faltan ${daysLeft}d)`);
+  return pc.yellow(`⏳ too recent (${daysLeft}d remaining)`);
 }
 
 function updateCommand(pkg: OutdatedPackage, isNode: boolean): string {
@@ -49,11 +49,11 @@ export function printOutdatedReport(
 ): void {
   const sep = "─".repeat(72);
 
-  console.log(pc.bold("\n📦 Paquetes desactualizados\n"));
+  console.log(pc.bold("\n📦 Outdated packages\n"));
 
   if (!policy.hasConfig) {
     console.log(
-      pc.yellow("  ⚠  renovate.json no encontrado — usando política por defecto") +
+      pc.yellow("  ⚠  renovate.json not found — using default policy") +
       pc.dim(` (patch: ${policy.patch}d · minor: ${policy.minor}d · major: ${policy.major}d)\n`)
     );
   }
@@ -66,12 +66,12 @@ export function printOutdatedReport(
     const label   = TYPE_COLOR[type](TYPE_LABEL[type]);
     const pDays   = policy[type];
     const typeDesc = type === "patch"
-      ? "sin breaking changes"
+      ? "no breaking changes"
       : type === "minor"
-      ? "nueva funcionalidad — revisar changelog"
-      : "breaking changes posibles — revisión obligatoria";
+      ? "new functionality — review changelog"
+      : "possible breaking changes — mandatory review";
 
-    console.log(`  ${label}  ${pc.dim(`— política: ${pDays}d · ${typeDesc}`)}`);
+    console.log(`  ${label}  ${pc.dim(`— policy: ${pDays}d · ${typeDesc}`)}`);
     console.log(pc.dim("  " + sep));
 
     const nameW = Math.max(...group.map((p) => p.name.length), 14) + 2;
@@ -98,30 +98,30 @@ export function printOutdatedReport(
   const manual  = packages.filter((p) => p.updateType !== "patch" && p.policyMet !== false);
 
   const parts = [
-    safe.length    ? pc.green(`${safe.length} patch(es) listos para --fix`)  : "",
-    manual.length  ? pc.yellow(`${manual.length} requieren revisión manual`)  : "",
-    waiting.length ? pc.dim(`${waiting.length} en período de espera`)         : "",
+    safe.length    ? pc.green(`${safe.length} patch(es) ready for --fix`)    : "",
+    manual.length  ? pc.yellow(`${manual.length} require manual review`)      : "",
+    waiting.length ? pc.dim(`${waiting.length} in waiting period`)            : "",
   ].filter(Boolean);
 
   console.log(`  ${parts.join(pc.dim(" · "))}\n`);
 
   if (safe.length > 0) {
     console.log(
-      pc.dim(`  Patches seguros disponibles → ejecuta con: `) +
+      pc.dim(`  Safe patches available → run with: `) +
       pc.bold("locksmith . --outdated --fix") + "\n"
     );
   }
 
   if (waiting.length > 0) {
-    console.log(pc.dim("  En período de espera:"));
+    console.log(pc.dim("  In waiting period:"));
     for (const pkg of waiting) {
       const daysLeft = pkg.policyDays - (pkg.ageInDays ?? 0);
-      console.log(pc.dim(`    ${pkg.name.padEnd(20)} disponible en ${daysLeft}d`));
+      console.log(pc.dim(`    ${pkg.name.padEnd(20)} available in ${daysLeft}d`));
     }
     console.log();
   }
 }
 
 export function printNoOutdated(): void {
-  console.log(pc.green("\n  ✓ Todos los paquetes están actualizados\n"));
+  console.log(pc.green("\n  ✓ All packages are up to date\n"));
 }
