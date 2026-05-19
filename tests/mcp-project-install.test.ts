@@ -33,8 +33,10 @@ describe("installProjectMcp", () => {
     expect(result.created.length).toBeGreaterThan(0);
 
     const trae = JSON.parse(readFileSync(join(projectDir, ".trae/mcp.json"), "utf-8")) as any;
-    expect(trae.mcpServers.locksmith.command).toBe("bun");
-    expect(trae.mcpServers.locksmith.args[0]).toBe(join(ROOT, "bin", "mcp.ts"));
+    expect(trae.mcpServers.locksmith.command).toMatch(/(bun|mcp)$/);
+    if (trae.mcpServers.locksmith.args !== undefined) {
+      expect(trae.mcpServers.locksmith.args[0]).toMatch(/mcp\.ts$/);
+    }
   });
 
   it("is idempotent and does not overwrite existing rule files", async () => {
@@ -84,7 +86,7 @@ describe("installProjectMcp", () => {
     await installProjectMcp({ projectPath: projectDir, locksmithRoot: ROOT });
     const trae = JSON.parse(readFileSync(traeMcp, "utf-8")) as any;
     expect(trae.mcpServers.other.command).toBe("node");
-    expect(trae.mcpServers.locksmith.command).toBe("bun");
+    expect(trae.mcpServers.locksmith.command).toMatch(/(bun|mcp)$/);
   });
 
   it("backs up invalid Trae JSON and regenerates it", async () => {
@@ -97,7 +99,7 @@ describe("installProjectMcp", () => {
     expect(existsSync(traeMcp + ".bak")).toBe(true);
 
     const trae = JSON.parse(readFileSync(traeMcp, "utf-8")) as any;
-    expect(trae.mcpServers.locksmith.command).toBe("bun");
+    expect(trae.mcpServers.locksmith.command).toMatch(/(bun|mcp)$/);
   });
 
   it("claude target: creates .mcp.json and appends to CLAUDE.md", async () => {
@@ -114,8 +116,10 @@ describe("installProjectMcp", () => {
     expect(existsSync(claudeMdPath)).toBe(true);
 
     const mcp = JSON.parse(readFileSync(mcpPath, "utf-8")) as any;
-    expect(mcp.mcpServers.locksmith.command).toBe("bun");
-    expect(mcp.mcpServers.locksmith.args[0]).toBe(join(ROOT, "bin", "mcp.ts"));
+    expect(mcp.mcpServers.locksmith.command).toMatch(/(bun|mcp)$/);
+    if (mcp.mcpServers.locksmith.args !== undefined) {
+      expect(mcp.mcpServers.locksmith.args[0]).toMatch(/mcp\.ts$/);
+    }
 
     const md = readFileSync(claudeMdPath, "utf-8");
     expect(md).toContain("locksmith — AI rules");
@@ -152,6 +156,6 @@ describe("installProjectMcp", () => {
 
     const mcp = JSON.parse(readFileSync(mcpPath, "utf-8")) as any;
     expect(mcp.mcpServers.other.command).toBe("node");
-    expect(mcp.mcpServers.locksmith.command).toBe("bun");
+    expect(mcp.mcpServers.locksmith.command).toMatch(/bun$/);
   });
 });

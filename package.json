@@ -9,13 +9,16 @@
   "scripts": {
     "dev": "bun run ./bin/cli.ts",
     "build": "bun build ./bin/cli.ts --outdir ./dist --target bun --minify",
+    "build:mcp": "bun build ./bin/mcp.ts --compile --outfile ./dist/mcp --target bun",
     "test": "bun test",
     "lint": "bunx tsc --noEmit",
     "preinstall": "npx only-allow pnpm",
     "security": "locksmith .",
     "security:fix": "locksmith . --fix",
     "security:ci": "locksmith . --strict",
-    "install:ci": "pnpm install --frozen-lockfile --ignore-scripts"
+    "install:ci": "pnpm install --frozen-lockfile --ignore-scripts",
+    "clean-mcp": "bun run scripts/clean-mcp.ts",
+    "clean-mcp:dry": "bun run scripts/clean-mcp.ts --dry-run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -30,8 +33,5 @@
     "fast-check": "^4.8.0",
     "typescript": "^6.0.3"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": []
-  },
-  "packageManager": "pnpm@11.1.2"
+  "packageManager": "pnpm@11.1.3"
 }

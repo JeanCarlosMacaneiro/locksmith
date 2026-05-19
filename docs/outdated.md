@@ -5,6 +5,7 @@
 ```bash
 locksmith --outdated           # Show outdated packages
 locksmith --outdated --fix     # Auto-apply safe patch updates
+locksmith --config             # Configure policy thresholds interactively
 ```
 
 ---
@@ -64,6 +65,41 @@ Default policy (applied when no `renovate.json` is found):
 If no `renovate.json` is found, a warning is shown and the default policy is applied.
 
 Locksmith accepts `renovate.json` at the project root, `.github/renovate.json`, or `renovate.json5`.
+
+### Customising policy thresholds
+
+Run `locksmith --config` to interactively set per-project thresholds:
+
+```
+Locksmith — Outdated Policy
+
+  major            [30d] →
+  minor            [ 7d] →
+  patch (not met)  [ 3d] →
+  patch (met)      [ 3d]   (same threshold — safe to auto-fix when met)
+```
+
+Press Enter to keep the current value. Any field left blank is unchanged. Values are saved to `.locksmith.json` in the project root.
+
+**Priority chain** (highest wins):
+
+1. `.locksmith.json` — values set via `--config`
+2. `renovate.json` — existing Renovate configuration
+3. Built-in defaults — `patch: 3d · minor: 7d · major: 30d`
+
+`.locksmith.json` shape:
+
+```json
+{
+  "outdatedPolicy": {
+    "major": 30,
+    "minor": 7,
+    "patch": 3
+  }
+}
+```
+
+Only the fields you changed are written. The file can be committed to version control to share policy across the team.
 
 > **Why wait?** The `minimumReleaseAge` delay gives the open source community time to detect newly poisoned package versions before they reach your project. See the [event-stream incident (2018)](https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident) as a reference case.
 

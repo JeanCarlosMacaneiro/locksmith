@@ -119,6 +119,7 @@ export interface SafeAddOutput {
   dangerousScripts: DangerousScript[];
   socketScore: SocketScore | null;
   installed: boolean;
+  ecosystem: "node" | "python";
 }
 
 // ─── Error output ─────────────────────────────────────────────────────────────

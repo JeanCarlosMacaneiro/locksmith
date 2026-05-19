@@ -52,6 +52,22 @@ describe("getConfigPath — config paths por cliente y plataforma", () => {
     expect(getConfigPath("antigravity", "win32", ENV)).toBeNull();
   });
 
+  it("codex darwin → ~/.codex/config.toml", () => {
+    expect(getConfigPath("codex", "darwin", ENV)).toBe(
+      "/home/testuser/.codex/config.toml"
+    );
+  });
+
+  it("codex linux → ~/.codex/config.toml", () => {
+    expect(getConfigPath("codex", "linux", ENV)).toBe(
+      "/home/testuser/.codex/config.toml"
+    );
+  });
+
+  it("chatgpt darwin → null (remote HTTPS only)", () => {
+    expect(getConfigPath("chatgpt", "darwin", ENV)).toBeNull();
+  });
+
   it("cursor darwin → ~/.cursor/mcp.json", () => {
     expect(getConfigPath("cursor", "darwin", ENV)).toBe(
       "/home/testuser/.cursor/mcp.json"
@@ -107,9 +123,15 @@ describe("getConfigPath — config paths por cliente y plataforma", () => {
     });
 
     it("returns false when client has no path for platform", () => {
-      // chatgpt is hint-only — no config paths on any platform
+      // chatgpt is hint-only (remote HTTPS only) — no config paths on any platform
       expect(isClientInstalled("chatgpt", "darwin", { HOME: tmpDir })).toBe(false);
       expect(isClientInstalled("chatgpt", "linux", { HOME: tmpDir })).toBe(false);
+    });
+
+    it("codex: returns true when ~/.codex dir exists", () => {
+      mkdirSync(join(tmpDir, ".codex"), { recursive: true });
+      expect(isClientInstalled("codex", "darwin", { HOME: tmpDir })).toBe(true);
+      expect(isClientInstalled("codex", "linux", { HOME: tmpDir })).toBe(true);
     });
   });
 

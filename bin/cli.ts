@@ -8,6 +8,48 @@ import { installProjectMcp } from "../src/mcp/project-install";
 import type { InstallProjectMcpTarget } from "../src/mcp/project-install";
 import type { RunOptions } from "../src/types";
 
+async function runPolicyConfig(projectPath: string): Promise<void> {
+  const { createInterface } = await import("readline");
+  const { readRenovatePolicy } = await import("../src/outdated/classify");
+  const { writeLocksmithPolicy } = await import("../src/config/policy");
+
+  const current = readRenovatePolicy(projectPath);
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const ask = (q: string): Promise<string> =>
+    new Promise((resolve) => rl.question(q, resolve));
+
+  console.log("\nLocksmith — Outdated Policy\n");
+
+  const fields = [
+    { key: "major" as const, label: "major          " },
+    { key: "minor" as const, label: "minor          " },
+    { key: "patch" as const, label: "patch (not met)" },
+  ];
+
+  const updates: Partial<{ major: number; minor: number; patch: number }> = {};
+
+  for (const { key, label } of fields) {
+    const cur = current[key];
+    const raw = await ask(`  ${label}  [${cur}d] → `);
+    const n = parseInt(raw.trim());
+    if (!Number.isNaN(n) && n > 0) updates[key] = n;
+  }
+
+  const patchVal = updates.patch ?? current.patch;
+  console.log(`  patch (met)     [${patchVal}d]   (same threshold — safe to auto-fix when met)\n`);
+
+  rl.close();
+
+  if (Object.keys(updates).length === 0) {
+    console.log("  No changes made.\n");
+    return;
+  }
+
+  writeLocksmithPolicy(projectPath, updates);
+  console.log(`  ✓ Saved to ${projectPath}/.locksmith.json\n`);
+}
+
 function parseInstallMcpClients(raw: unknown): InstallProjectMcpTarget[] | null {
   if (typeof raw !== "string") return null;
   const allowed: InstallProjectMcpTarget[] = ["trae", "cursor", "windsurf", "cline", "copilot", "agents", "claude"];
@@ -69,6 +111,11 @@ yargs(hideBin(process.argv))
         .option("install-mcp-clients", {
           type: "string",
           description: "CSV list for non-interactive mode: trae,cursor,windsurf,cline,copilot,agents,claude",
+        })
+        .option("config", {
+          type: "boolean",
+          description: "Interactively configure outdated policy thresholds (saved to .locksmith.json)",
+          default: false,
         }),
     async (argv) => {
       if (argv["install-mcp"] as boolean) {
@@ -102,6 +149,11 @@ yargs(hideBin(process.argv))
           console.log("✓ Per-project MCP configured");
           for (const p of created) console.log(`  → ${p}`);
         }
+        return;
+      }
+
+      if (argv["config"] as boolean) {
+        await runPolicyConfig(argv.path as string);
         return;
       }
 

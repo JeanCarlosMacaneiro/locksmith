@@ -8,6 +8,7 @@ CLI and MCP server to audit and enforce security policies for **Node.js · Bun �
 - Applies auto-fixes when available (`--fix`)
 - Analyzes and fixes Dockerfiles — multi-stage aware (`--fix-dockerfile`)
 - Checks outdated packages against Renovate policy (`--outdated`)
+- Configures per-project policy thresholds interactively (`--config`)
 - "Safe add/update": inspects packages before installing/updating (`add`, `update`)
 - Configures MCP integration for AI clients — global and per-project
 - Exposes all operations as MCP tools for AI clients
@@ -51,6 +52,7 @@ locksmith --fix                    # auto-fix + re-check + Dockerfile prompt
 locksmith --fix-dockerfile         # fix Dockerfile only
 locksmith --outdated               # outdated packages vs Renovate policy
 locksmith --outdated --fix         # auto-apply safe patch updates
+locksmith --config                 # configure outdated policy thresholds
 locksmith add <pkg>                # inspect package before installing
 locksmith register-mcp             # configure MCP for installed AI clients
 locksmith --install-mcp            # per-project MCP + rules for IDE clients
@@ -68,6 +70,7 @@ locksmith . --strict               # exit 1 on warnings (CI mode)
 | `locksmith --fix-docker` | Alias for `--fix-dockerfile` | [Dockerfile](docs/dockerfile.md) |
 | `locksmith --outdated` | Outdated packages vs Renovate policy | [Outdated](docs/outdated.md) |
 | `locksmith --outdated --fix` | Auto-apply safe patch updates | [Outdated](docs/outdated.md) |
+| `locksmith --config` | Configure outdated policy thresholds interactively | [Outdated](docs/outdated.md) |
 | `locksmith add <pkg>[@ver]` | Inspect package security before installing | [Safe add/update](docs/safe-add.md) |
 | `locksmith update <pkg>[@ver]` | Inspect package security before updating | [Safe add/update](docs/safe-add.md) |
 | `locksmith register-mcp` | Configure MCP server for installed AI clients (global) | — |
@@ -161,13 +164,15 @@ Auto-detects installed AI clients by checking their config directories. Configur
 
 | Client | Config written | Notes |
 |---|---|---|
-| Claude Desktop + Claude Code | `~/Library/Application Support/Claude/claude_desktop_config.json` | + rules appended to `~/.claude/CLAUDE.md` |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | + rules appended to `~/.claude/CLAUDE.md` |
+| Claude Code (CLI) | `~/.claude/mcp.json` | + rules appended to `~/.claude/CLAUDE.md` |
 | Cursor | `~/.cursor/mcp.json` | — |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` | — |
 | Cline | VS Code extension settings | — |
 | Kiro (Amazon) | `~/.kiro/settings/mcp.json` | + skill copied to `~/.kiro/steering/locksmith.md` |
 | Zed | `~/.config/zed/settings.json` | `context_servers` format |
 | Continue.dev | `~/.continue/config.json` | array `mcpServers` format |
+| OpenCode | `~/.config/opencode/opencode.json` | `mcp.type=local` format |
 | OpenAI Codex CLI | `~/.codex/config.json` | — |
 | ChatGPT Desktop | — | UI only: Settings → Connectors → Add connector |
 

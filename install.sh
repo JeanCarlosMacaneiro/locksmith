@@ -79,6 +79,13 @@ fi
 
 ok "Dependencies installed"
 
+# ─── step 3b: compile MCP binary ─────────────────────────────────────────────
+step "3b/5  Compiling MCP server"
+
+mkdir -p "$SCRIPT_DIR/dist"
+bun build "$SCRIPT_DIR/bin/mcp.ts" --compile --outfile "$SCRIPT_DIR/dist/mcp" --target bun
+ok "MCP binary compiled: $SCRIPT_DIR/dist/mcp"
+
 # ─── step 4: symlink global ──────────────────────────────────────────────────
 step "4/5  Registering locksmith command"
 

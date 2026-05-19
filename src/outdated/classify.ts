@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type { OutdatedPackage, RenovatePolicy, UpdateType } from "../types";
+import { readLocksmithPolicy } from "../config/policy";
 
 // ─── semver helpers ───────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ export function readRenovatePolicy(projectPath: string): RenovatePolicy {
 
   const defaults: RenovatePolicy = { patch: 3, minor: 7, major: 30, hasConfig: false };
   const found = paths.find(existsSync);
-  if (!found) return defaults;
+  if (!found) return applyLocksmithOverrides({ ...defaults }, projectPath);
 
   try {
     const config = JSON.parse(readFileSync(found, "utf-8"));
@@ -55,10 +56,18 @@ export function readRenovatePolicy(projectPath: string): RenovatePolicy {
       }
     }
 
-    return policy;
+    return applyLocksmithOverrides(policy, projectPath);
   } catch {
-    return defaults;
+    return applyLocksmithOverrides(defaults, projectPath);
   }
+}
+
+function applyLocksmithOverrides(base: RenovatePolicy, projectPath: string): RenovatePolicy {
+  const overrides = readLocksmithPolicy(projectPath);
+  if (overrides.patch !== undefined) base.patch = overrides.patch;
+  if (overrides.minor !== undefined) base.minor = overrides.minor;
+  if (overrides.major !== undefined) base.major = overrides.major;
+  return base;
 }
 
 // ─── package builder ──────────────────────────────────────────────────────────

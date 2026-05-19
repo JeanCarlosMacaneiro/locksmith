@@ -11,6 +11,10 @@ const mockFetchPackageJson = mock(async () => ({ name: "test-pkg", version: "1.2
 const mockQuerySocket     = mock(async () => null);
 const mockInstallPackage  = mock(async () => {});
 const mockUpdatePackage   = mock(async () => {});
+const mockResolvePyPI     = mock(async () => "1.1.3");
+const mockFetchPyPIInfo   = mock(async () => ({ name: "requests", version: "1.1.3", summary: "HTTP", description: "", requiresDist: [], homePage: "" }));
+const mockInstallPython   = mock(async () => {});
+const mockUpdatePython    = mock(async () => {});
 
 mock.module("../../src/add/registry-client", () => ({
   resolveVersion:  mockResolveVersion,
@@ -24,6 +28,16 @@ mock.module("../../src/add/socket-client", () => ({
 mock.module("../../src/add/installer", () => ({
   installPackage: mockInstallPackage,
   updatePackage:  mockUpdatePackage,
+}));
+
+mock.module("../../src/add/pypi-client", () => ({
+  resolvePyPIVersion: mockResolvePyPI,
+  fetchPyPIInfo: mockFetchPyPIInfo,
+}));
+
+mock.module("../../src/add/python-installer", () => ({
+  installPythonPackage: mockInstallPython,
+  updatePythonPackage:  mockUpdatePython,
 }));
 
 import { runSafeAdd, runSafeUpdate } from "../../src/add/index";
@@ -40,6 +54,10 @@ beforeEach(() => {
   mockQuerySocket.mockClear();
   mockInstallPackage.mockClear();
   mockUpdatePackage.mockClear();
+  mockResolvePyPI.mockClear();
+  mockFetchPyPIInfo.mockClear();
+  mockInstallPython.mockClear();
+  mockUpdatePython.mockClear();
   // Default: no socket token
   delete process.env.SOCKET_SECURITY_API_TOKEN;
 });
@@ -55,6 +73,10 @@ function writePkg(): void {
 
 function writeLockfile(): void {
   writeFileSync(join(dir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+}
+
+function writePyproject(): void {
+  writeFileSync(join(dir, "pyproject.toml"), "[tool.poetry]\nname = \"proj\"\nversion = \"0.1.0\"\n");
 }
 
 async function runSafely(fn: () => Promise<void>): Promise<number> {
@@ -285,6 +307,79 @@ describe("Orchestrator — runSafeUpdate usa updatePackage", () => {
     );
     expect(mockUpdatePackage).toHaveBeenCalled();
     expect(mockInstallPackage).not.toHaveBeenCalled();
+  });
+});
+
+// ── Python routing ────────────────────────────────────────────────────────────
+
+describe("Orchestrator Python — roteamento por pyproject.toml", () => {
+  it("pyproject.toml presente → usa PyPI client, não npm", async () => {
+    writePyproject();
+    await runSafely(() =>
+      runSafeAdd({ projectPath: dir, package: "requests", force: false, dryRun: false })
+    );
+    expect(mockResolvePyPI).toHaveBeenCalled();
+    expect(mockResolveVersion).not.toHaveBeenCalled();
+  });
+
+  it("pyproject.toml presente → instala via python installer", async () => {
+    writePyproject();
+    await runSafely(() =>
+      runSafeAdd({ projectPath: dir, package: "requests", force: false, dryRun: false })
+    );
+    expect(mockInstallPython).toHaveBeenCalled();
+    expect(mockInstallPackage).not.toHaveBeenCalled();
+  });
+
+  it("Python dry-run → não instala", async () => {
+    writePyproject();
+    const code = await runSafely(() =>
+      runSafeAdd({ projectPath: dir, package: "requests", force: false, dryRun: true })
+    );
+    expect(mockInstallPython).not.toHaveBeenCalled();
+    expect(code).toBe(0);
+  });
+
+  it("pyproject.toml ausente + package.json ausente → exit 1", async () => {
+    const code = await runSafely(() =>
+      runSafeAdd({ projectPath: dir, package: "requests", force: false, dryRun: false })
+    );
+    expect(code).toBe(1);
+  });
+
+  it("Python — PyPI not_found → exit 1", async () => {
+    writePyproject();
+    mockResolvePyPI.mockImplementationOnce(() => {
+      throw new (require("../../src/types").RegistryError)("not found", "not_found");
+    });
+    const code = await runSafely(() =>
+      runSafeAdd({ projectPath: dir, package: "no-pkg", force: false, dryRun: false })
+    );
+    expect(code).toBe(1);
+    expect(mockInstallPython).not.toHaveBeenCalled();
+  });
+
+  it("runSafeUpdate Python → usa updatePythonPackage", async () => {
+    writePyproject();
+    await runSafely(() =>
+      runSafeUpdate({ projectPath: dir, package: "requests", force: false, dryRun: false })
+    );
+    expect(mockUpdatePython).toHaveBeenCalled();
+    expect(mockUpdatePackage).not.toHaveBeenCalled();
+  });
+});
+
+// ── Precedência: pyproject.toml > package.json ────────────────────────────────
+
+describe("Orchestrator — prioridade pyproject.toml sobre package.json", () => {
+  it("ambos presentes → rota Python (pyproject.toml tem prioridade)", async () => {
+    writePyproject();
+    writePkg();
+    await runSafely(() =>
+      runSafeAdd({ projectPath: dir, package: "requests", force: false, dryRun: false })
+    );
+    expect(mockResolvePyPI).toHaveBeenCalled();
+    expect(mockResolveVersion).not.toHaveBeenCalled();
   });
 });
 

@@ -1,12 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type { CheckResult } from "../types";
-
-const REQUIRED_DELAYS: Record<string, number> = {
-  patch: 3,
-  minor: 7,
-  major: 30,
-};
+import { readLocksmithPolicy, POLICY_DEFAULTS } from "../config/policy";
 
 function parseDays(value: string | undefined): number {
   if (!value) return 0;
@@ -15,6 +10,9 @@ function parseDays(value: string | undefined): number {
 }
 
 export async function checkRenovate(projectPath: string): Promise<CheckResult> {
+  const overrides = readLocksmithPolicy(projectPath);
+  const REQUIRED_DELAYS = { ...POLICY_DEFAULTS, ...overrides };
+
   const paths = [
     join(projectPath, "renovate.json"),
     join(projectPath, "renovate.json5"),
@@ -46,7 +44,7 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
         "  → Bitbucket: https://docs.renovatebot.com/modules/platform/bitbucket/",
         "",
         "Once installed, Renovate will read renovate.json and open PRs respecting",
-        "the configured wait times (patch: 3d · minor: 7d · major: 30d).",
+        `the configured wait times (patch: ${REQUIRED_DELAYS.patch}d · minor: ${REQUIRED_DELAYS.minor}d · major: ${REQUIRED_DELAYS.major}d).`,
       ],
     };
   }
@@ -80,9 +78,9 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
         "This gives time to detect whether a new version is malicious before it enters your project.",
         "",
         "Required values by security policy:",
-        "  patch  → minimum 3 days   (e.g. bug fix, low risk)",
-        "  minor  → minimum 7 days   (e.g. new feature, medium risk)",
-        "  major  → minimum 30 days  (e.g. breaking change, high risk)",
+        `  patch  → minimum ${REQUIRED_DELAYS.patch} days   (e.g. bug fix, low risk)`,
+        `  minor  → minimum ${REQUIRED_DELAYS.minor} days   (e.g. new feature, medium risk)`,
+        `  major  → minimum ${REQUIRED_DELAYS.major} days  (e.g. breaking change, high risk)`,
         "",
         "To fix automatically with the correct values:",
         "  $ locksmith --fix",
@@ -98,13 +96,13 @@ export async function checkRenovate(projectPath: string): Promise<CheckResult> {
   return {
     name: "renovate.json",
     status: "ok",
-    message: "Release delay: patch 3d · minor 7d · major 30d",
+    message: `Release delay: patch ${REQUIRED_DELAYS.patch}d · minor ${REQUIRED_DELAYS.minor}d · major ${REQUIRED_DELAYS.major}d`,
     hint: [
       "Renovate will automatically open PRs when updates are available.",
       "Each PR will wait the configured time before it can be merged:",
-      "  patch  → 3 days   → requires manual approval",
-      "  minor  → 7 days   → requires manual approval",
-      "  major  → 30 days  → requires manual approval",
+      `  patch  → ${REQUIRED_DELAYS.patch} days   → requires manual approval`,
+      `  minor  → ${REQUIRED_DELAYS.minor} days   → requires manual approval`,
+      `  major  → ${REQUIRED_DELAYS.major} days  → requires manual approval`,
       "",
       "To update a dependency manually without waiting for Renovate:",
       "  $ pnpm update <package>          → update to the latest allowed version",

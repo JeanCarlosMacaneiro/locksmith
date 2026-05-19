@@ -1,4 +1,4 @@
-import { buildMcpConfig, buildZedConfig, buildContinueConfig } from "../src/mcp/installer";
+import { buildMcpConfig, buildZedConfig, buildContinueConfig, buildOpenCodeConfig, buildCodexTomlConfig, resolveMcpCommand } from "../src/mcp/installer";
 import {
   mkdirSync,
   existsSync,
@@ -7,6 +7,7 @@ import {
   copyFileSync,
 } from "fs";
 import { dirname, join } from "path";
+import { $ } from "bun";
 
 export interface McpClient {
   id: string;
@@ -16,7 +17,8 @@ export interface McpClient {
   win32Path?: string;
   skillPath?: string;
   skillMode?: "append-to-file" | "copy-file";
-  configFormat?: "standard" | "zed" | "continue";
+  configFormat?: "standard" | "zed" | "continue" | "opencode" | "codex-toml";
+  detectCommand?: string;
   hint?: string;
 }
 
@@ -25,10 +27,19 @@ export type PlatformEnv = Record<string, string | undefined>;
 export const CLIENTS: McpClient[] = [
   {
     id: "claude-desktop",
-    name: "Claude Desktop + Claude Code",
+    name: "Claude Desktop",
     darwinPath: "${HOME}/Library/Application Support/Claude/claude_desktop_config.json",
     linuxPath: "${HOME}/.config/Claude/claude_desktop_config.json",
     win32Path: "${APPDATA}\\Claude\\claude_desktop_config.json",
+    skillPath: "${HOME}/.claude/CLAUDE.md",
+    skillMode: "append-to-file",
+  },
+  {
+    id: "claude-code",
+    name: "Claude Code (CLI)",
+    darwinPath: "${HOME}/.claude/mcp.json",
+    linuxPath: "${HOME}/.claude/mcp.json",
+    win32Path: "${HOME}\\.claude\\mcp.json",
     skillPath: "${HOME}/.claude/CLAUDE.md",
     skillMode: "append-to-file",
   },
@@ -88,16 +99,24 @@ export const CLIENTS: McpClient[] = [
   {
     id: "chatgpt",
     name: "ChatGPT Desktop",
-    // No file-based MCP config — ChatGPT Desktop manages connectors via UI only
-    hint: "ChatGPT Desktop: add MCP server via Settings → Connectors → Add connector",
+    // ChatGPT only supports remote HTTPS MCP — not supported by locksmith (STDIO only).
+    hint: "ChatGPT Desktop: not supported — requires remote HTTPS MCP server.",
+  },
+  {
+    id: "opencode",
+    name: "OpenCode",
+    darwinPath: "${HOME}/.config/opencode/opencode.json",
+    linuxPath: "${HOME}/.config/opencode/opencode.json",
+    win32Path: "${APPDATA}\\opencode\\opencode.json",
+    configFormat: "opencode",
   },
   {
     id: "codex",
     name: "OpenAI Codex CLI",
-    darwinPath: "${HOME}/.codex/config.json",
-    linuxPath: "${HOME}/.codex/config.json",
-    win32Path: "${HOME}\\.codex\\config.json",
-    hint: "Codex CLI: run `codex mcp add locksmith` if available in your version",
+    darwinPath: "${HOME}/.codex/config.toml",
+    linuxPath: "${HOME}/.codex/config.toml",
+    win32Path: "${HOME}\\.codex\\config.toml",
+    configFormat: "codex-toml",
   },
 ];
 
@@ -129,6 +148,11 @@ export function isClientInstalled(
   platform: string,
   env: PlatformEnv = process.env
 ): boolean {
+  const client = CLIENTS.find((c) => c.id === clientId);
+  if (!client) return false;
+  if (client.detectCommand) {
+    return Bun.which(client.detectCommand) !== null;
+  }
   const configPath = getConfigPath(clientId, platform, env);
   if (!configPath) return false;
   return existsSync(dirname(configPath));
@@ -245,7 +269,7 @@ export async function multiselect(options: string[]): Promise<number[]> {
 
 export async function registerClient(
   client: McpClient,
-  mcpEntryPath: string,
+  locksmithRoot: string,
   scriptDir: string,
   platform: string = process.platform,
   env: PlatformEnv = process.env
@@ -270,13 +294,23 @@ export async function registerClient(
     }
   }
 
+  if (client.configFormat === "codex-toml") {
+    const { command, args } = resolveMcpCommand(locksmithRoot);
+    const existingContent = existsSync(configPath) ? readFileSync(configPath, "utf-8") : "";
+    writeFileSync(configPath, buildCodexTomlConfig(existingContent, command, args));
+    process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: MCP configured\n`);
+    return;
+  }
+
   let config: Record<string, unknown>;
   if (client.configFormat === "zed") {
-    config = buildZedConfig(existingConfig, mcpEntryPath);
+    config = buildZedConfig(existingConfig, locksmithRoot);
   } else if (client.configFormat === "continue") {
-    config = buildContinueConfig(existingConfig, mcpEntryPath);
+    config = buildContinueConfig(existingConfig, locksmithRoot);
+  } else if (client.configFormat === "opencode") {
+    config = buildOpenCodeConfig(existingConfig, locksmithRoot);
   } else {
-    config = buildMcpConfig(existingConfig, mcpEntryPath);
+    config = buildMcpConfig(existingConfig, locksmithRoot);
   }
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   process.stdout.write(`  \x1b[32m✓\x1b[0m ${client.name}: MCP configured\n`);
@@ -322,7 +356,6 @@ export interface MainOverrides {
 
 export async function main(overrides: MainOverrides = {}): Promise<void> {
   const scriptDir = overrides.scriptDir ?? join(import.meta.dir, "..");
-  const mcpEntry = join(import.meta.dir, "mcp.ts");
   const platform = overrides.platform ?? process.platform;
   const env = overrides.env ?? process.env;
 
@@ -342,7 +375,7 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
     if (detected.length > 0) {
       process.stdout.write(`  \x1b[2mDetected ${detected.length} AI client${detected.length !== 1 ? "s" : ""} — configuring automatically\x1b[0m\n\n`);
       for (const client of detected) {
-        await registerClient(client, mcpEntry, scriptDir, platform, env);
+        await registerClient(client, scriptDir, scriptDir, platform, env);
       }
       if (undetected.length > 0) {
         const names = undetected.map((c) => c.name).join(", ");
@@ -382,7 +415,7 @@ export async function main(overrides: MainOverrides = {}): Promise<void> {
   for (const idx of selectedIndices) {
     const client = CLIENTS[idx];
     if (client) {
-      await registerClient(client, mcpEntry, scriptDir, platform, env);
+      await registerClient(client, scriptDir, scriptDir, platform, env);
     }
   }
 
@@ -404,7 +437,6 @@ if (import.meta.main) {
       .filter(Boolean);
 
     const scriptDir = join(import.meta.dir, "..");
-    const mcpEntry = join(import.meta.dir, "mcp.ts");
 
     Promise.resolve()
       .then(async () => {
@@ -415,7 +447,7 @@ if (import.meta.main) {
             process.exitCode = 1;
             continue;
           }
-          await registerClient(client, mcpEntry, scriptDir);
+          await registerClient(client, scriptDir, scriptDir);
         }
       })
       .catch((err: Error) => {

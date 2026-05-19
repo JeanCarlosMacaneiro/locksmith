@@ -33,8 +33,7 @@ describe("Integration — main()", () => {
     expect(existsSync(configPath)).toBe(true);
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    expect(config.mcpServers?.locksmith?.command).toBe("bun");
-    expect(Array.isArray(config.mcpServers?.locksmith?.args)).toBe(true);
+    expect(config.mcpServers?.locksmith?.command).toMatch(/(bun|mcp)$/);
   });
 
   it("selectedIndices=[0] (Claude Desktop) en darwin → skill añadido a CLAUDE.md", async () => {
@@ -51,10 +50,10 @@ describe("Integration — main()", () => {
     expect(readFileSync(claudeMd, "utf-8")).toContain("locksmith — AI rules");
   });
 
-  it("selectedIndices=[4] (Kiro) en linux → config y skill creados", async () => {
+  it("selectedIndices=[5] (Kiro) en linux → config y skill creados", async () => {
     await main({
       interactive: true,
-      selectedIndices: [4],
+      selectedIndices: [5],
       scriptDir: ROOT,
       platform: "linux",
       env: { HOME: tmpDir },
@@ -94,7 +93,7 @@ describe("Integration — main()", () => {
   it("múltiples clientes seleccionados → todos registrados", async () => {
     await main({
       interactive: true,
-      selectedIndices: [1, 2],
+      selectedIndices: [2, 3],
       scriptDir: ROOT,
       platform: "linux",
       env: { HOME: tmpDir },

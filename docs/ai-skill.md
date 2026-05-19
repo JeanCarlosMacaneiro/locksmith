@@ -13,6 +13,7 @@ Local security auditor. Ecosystems: Node.js · Bun · Electron · npm · yarn ·
 | Build / commit | `locksmith_audit` |
 | Modify Dockerfile | `locksmith_audit_docker` → `locksmith_fix_docker` with approval |
 | Check outdated | `locksmith_check_outdated` |
+| User wants to change policy thresholds | Run `locksmith --config` interactively |
 | Apply fixes | `locksmith_audit` → explicit approval → `locksmith_fix` |
 | npm/yarn project detected | Show errors → propose `--fix` to migrate to pnpm |
 | Electron project | `locksmith_audit` → review `electron-csp`, `electron-node-integration`, `electron-rebuild` |
@@ -65,6 +66,25 @@ If `fixable: true` → fix can be applied automatically with user approval. `hin
 | `"python"` | Poetry | Python checks only |
 
 **npm/yarn → pnpm migration:** auto-fix runs corepack + pnpm import + pnpm install + updates packageManager + removes old lockfile.
+
+---
+
+## Outdated policy configuration
+
+`locksmith --config [path]` opens an interactive editor for per-project thresholds.
+
+Fields (all in days):
+
+| Field | Default | Description |
+|---|---|---|
+| `major` | 30 | Days before major update is flagged as overdue |
+| `minor` | 7 | Days before minor update is flagged |
+| `patch (not met)` | 3 | Minimum days required for patch to be safe |
+| `patch (met)` | same as patch | Read-only — shows same threshold, confirms auto-fix eligibility |
+
+Values saved to `.locksmith.json`. Priority: `.locksmith.json` > `renovate.json` > built-in defaults.
+
+When user asks to change/set policy delays → run `locksmith --config`. Do NOT edit `renovate.json` manually for this.
 
 ---
 
